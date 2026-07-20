@@ -29,6 +29,7 @@ workflows:
     portrait: "flux_portrait"
     square: "flux_square"
     macro: "flux_macro"
+    clipart: "flux_clipart"
   default: "square"
 
 models:
@@ -36,10 +37,14 @@ models:
   # The controller is model-agnostic: when something better than FLUX.1 Dev
   # comes along, change one line here — no code changes.
   map:
-    highest_quality: "flux1-dev-fp8.safetensors"
-    fast_preview: "flux1-schnell.safetensors"
+    highest_quality: "flux1-schnell.safetensors"
+    fast_preview: "flux1-schnell-fp8.safetensors"
     photorealistic: "flux1-dev-fp8.safetensors"
   default: "photorealistic"
+
+styles:
+  clipart:
+    background: "mid-blue"
 
 generation:
   # Hard limits applied to whatever the LLM returns (fail-safe clamping).
