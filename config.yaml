@@ -1,0 +1,54 @@
+# AIStudio configuration
+# Parsing is fail-loud: missing or malformed keys abort the run with a clear error.
+
+ollama:
+  host: "http://127.0.0.1:11434"
+  # The orchestration model. Must be a local text model that reliably emits JSON.
+  # Test candidates with:  python controller.py "test prompt" --dry-run
+  orchestrator_model: "gemma4:26b"
+  # Routing/orchestration is deterministic by design.
+  temperature: 0
+
+comfyui:
+  host: "http://127.0.0.1:8188"
+  # Seconds between polls of /history while waiting for a generation.
+  poll_interval: 2
+  # Abort if a generation exceeds this many seconds.
+  timeout: 5400
+
+output:
+  # Expanded with ~ support. Folder layout: Output/YYYY/MM/YYYY-MM-DD Title/
+  root: "~/AIStudio/Output"
+
+workflows:
+  dir: "workflows"
+  # Capability -> workflow file (without .json).
+  # The LLM returns a "workflow" capability name; this maps it to a graph.
+  map:
+    landscape: "flux_landscape"
+    portrait: "flux_portrait"
+    square: "flux_square"
+    macro: "flux_macro"
+  default: "square"
+
+models:
+  # Capability -> checkpoint filename (as it appears in ComfyUI/models/checkpoints).
+  # The controller is model-agnostic: when something better than FLUX.1 Dev
+  # comes along, change one line here — no code changes.
+  map:
+    highest_quality: "flux1-dev-fp8.safetensors"
+    fast_preview: "flux1-schnell.safetensors"
+    photorealistic: "flux1-dev-fp8.safetensors"
+  default: "photorealistic"
+
+generation:
+  # Hard limits applied to whatever the LLM returns (fail-safe clamping).
+  min_steps: 4
+  max_steps: 60
+  min_cfg: 1.0
+  max_cfg: 10.0
+  # Dimensions are snapped to a multiple of this.
+  dimension_multiple: 16
+  max_dimension: 2048
+  # Images per run unless overridden with --count.
+  batch_size: 1

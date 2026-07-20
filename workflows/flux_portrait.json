@@ -1,0 +1,120 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "flux1-dev-fp8.safetensors"
+    },
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Positive Prompt"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Negative Prompt"
+    }
+  },
+  "4": {
+    "class_type": "FluxGuidance",
+    "inputs": {
+      "guidance": 3.5,
+      "conditioning": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Flux Guidance"
+    }
+  },
+  "5": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1536,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Latent"
+    }
+  },
+  "6": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 0,
+      "steps": 30,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "7": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "6",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "8": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "AIStudio",
+      "images": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}
