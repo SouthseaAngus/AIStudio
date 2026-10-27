@@ -17,12 +17,15 @@ REQUIRED_KEYS = [
     ("comfyui", "host"),
     ("comfyui", "poll_interval"),
     ("comfyui", "timeout"),
+    ("comfyui", "launchd_label"),
+    ("comfyui", "startup_timeout"),
     ("output", "root"),
     ("workflows", "dir"),
     ("workflows", "map"),
     ("workflows", "default"),
     ("models", "map"),
     ("models", "default"),
+    ("models", "step_limits"),
     ("generation", "min_steps"),
     ("generation", "max_steps"),
     ("generation", "min_cfg"),
@@ -56,6 +59,12 @@ def load_config(path: str, logger) -> dict:
         logger.fail("config: workflows.default is not a key of workflows.map")
     if cfg["models"]["default"] not in cfg["models"]["map"]:
         logger.fail("config: models.default is not a key of models.map")
+
+    if not isinstance(cfg["models"]["step_limits"], dict):
+        logger.fail("config: models.step_limits must be a mapping (may be empty: {})")
+    for ckpt, limit in cfg["models"]["step_limits"].items():
+        if not isinstance(limit, int) or limit < 1:
+            logger.fail(f"config: models.step_limits['{ckpt}'] must be a positive integer")
 
     cfg["output"]["root"] = str(Path(cfg["output"]["root"]).expanduser())
     return cfg

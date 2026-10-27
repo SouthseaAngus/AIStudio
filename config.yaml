@@ -15,6 +15,10 @@ comfyui:
   poll_interval: 2
   # Abort if a generation exceeds this many seconds.
   timeout: 5400
+  # If ComfyUI isn't answering, kickstart this LaunchAgent and wait for it.
+  launchd_label: "com.angus.aistudio.comfyui"
+  # Seconds to wait for ComfyUI to come up (cold start is ~40s).
+  startup_timeout: 120
 
 output:
   # Expanded with ~ support. Folder layout: Output/YYYY/MM/YYYY-MM-DD Title/
@@ -37,10 +41,15 @@ models:
   # The controller is model-agnostic: when something better than FLUX.1 Dev
   # comes along, change one line here — no code changes.
   map:
-    highest_quality: "flux1-schnell.safetensors"
+    highest_quality: "flux1-dev-fp8.safetensors"
     fast_preview: "flux1-schnell-fp8.safetensors"
     photorealistic: "flux1-dev-fp8.safetensors"
   default: "photorealistic"
+  # Checkpoint -> maximum sampler steps. Distilled models (Schnell) are built
+  # for ~4 steps; more just costs time. Checkpoints not listed use generation.max_steps.
+  step_limits:
+    "flux1-schnell-fp8.safetensors": 4
+    "flux1-schnell.safetensors": 4
 
 styles:
   clipart:

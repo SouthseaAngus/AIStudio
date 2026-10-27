@@ -53,6 +53,10 @@ def main():
     ollama = OllamaClient(cfg, logger)
     ollama.check_available()
 
+    comfy = ComfyClient(cfg, logger)
+    if not args.dry_run:
+        comfy.start_if_needed()  # overlaps ComfyUI cold start with orchestration
+
     system_prompt = prompt_builder.build_system_prompt(cfg)
     spec = ollama.structured_json(system_prompt, args.prompt)
     logger.log("Ollama completed")
@@ -66,6 +70,7 @@ def main():
         if args.model not in cfg["models"]["map"]:
             logger.fail(f"--model '{args.model}' not in models.map")
         spec["model"] = args.model
+    spec = prompt_builder.apply_model_limits(spec, cfg, logger)
 
     if args.dry_run:
         import json as _json
@@ -74,7 +79,6 @@ def main():
         print(_json.dumps(spec, indent=2, ensure_ascii=False))
         return
 
-    comfy = ComfyClient(cfg, logger)
     comfy.check_available()
 
     workflows = WorkflowManager(cfg, logger, BASE_DIR)

@@ -128,3 +128,17 @@ def validate_and_clamp(spec: dict, cfg: dict, logger) -> dict:
     spec["title"] = safe or "Untitled"
 
     return spec
+
+
+def apply_model_limits(spec: dict, cfg: dict, logger) -> dict:
+    """Cap steps for the checkpoint actually selected.
+
+    Runs after any --model override, so the cap always matches the model that
+    will be loaded (and Metadata.json records the steps really used).
+    """
+    ckpt = cfg["models"]["map"][spec["model"]]
+    limit = cfg["models"]["step_limits"].get(ckpt)
+    if limit is not None and spec["steps"] > limit:
+        logger.log(f"Steps capped {spec['steps']} -> {limit} for {ckpt}")
+        spec["steps"] = limit
+    return spec
