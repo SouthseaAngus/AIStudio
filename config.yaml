@@ -8,6 +8,9 @@ ollama:
   orchestrator_model: "gemma4:26b"
   # Routing/orchestration is deterministic by design.
   temperature: 0
+  # Context window for orchestration. The style catalogue makes the system
+  # prompt ~3k tokens, more than some Ollama defaults allow.
+  num_ctx: 8192
 
 comfyui:
   host: "http://127.0.0.1:8188"
@@ -52,8 +55,255 @@ models:
     "flux1-schnell.safetensors": 4
 
 styles:
-  clipart:
-    background: "mid-blue"
+  # The image types the orchestrator can choose from. Each type is self-contained:
+  # add, remove or retune one here and the LLM's instructions, validation and
+  # `--list-styles` all follow. Reference with examples: documentation/Image Types.md
+  #
+  #   family        photo | graphic | art — sets the vocabulary rules (graphic and
+  #                 art types are never allowed photographic language)
+  #   description   what the type produces
+  #   choose_when   words and situations that select it
+  #   prompt        how the positive prompt should read (X = the subject)
+  #   avoid         used as the negative prompt and as "never write" guidance
+  #   workflow      default shape, from workflows.map
+  #   lock_workflow true = the workflow can't be changed by the LLM
+  #   model         default capability, from models.map
+  #   cfg           FLUX guidance used for every run of this type
+  #   background    optional; the prompt must end "on a <colour> background"
+  #   example       a typical request
+  default: "photo"
+  types:
+
+    # ---------- Photographic ----------
+    photo:
+      family: photo
+      description: "General realistic photograph"
+      choose_when: "the user asks for a photo, picture or realistic image and no more specific photographic type fits"
+      prompt: "photograph of X, natural light, true-to-life colour, sharp focus on the subject, believable setting"
+      avoid: "illustration, painting, cartoon, CGI, oversaturated"
+      workflow: landscape
+      model: photorealistic
+      cfg: 3.5
+      example: "a red kite flying over Southsea Castle at sunrise"
+
+    portrait:
+      family: photo
+      description: "Photographic portrait of a person or animal"
+      choose_when: "portrait, headshot, close-up of a face, a person posing, pet portrait"
+      prompt: "portrait photograph of X, 85mm lens, shallow depth of field, soft directional window light, natural skin texture, eyes in sharp focus"
+      avoid: "plastic skin, airbrushed, distorted hands, extra fingers, cartoon"
+      workflow: portrait
+      model: photorealistic
+      cfg: 3.0
+      example: "an elderly fisherman mending nets on Hayling Island"
+
+    landscape:
+      family: photo
+      description: "Wide scenic photograph of land, sea or sky"
+      choose_when: "landscape, seascape, scenery, view, coastline, mountains, sunset over somewhere"
+      prompt: "landscape photograph of X, wide-angle, golden-hour light, strong foreground interest, deep focus, atmospheric depth"
+      avoid: "people in foreground, text, oversaturated, HDR halos"
+      workflow: landscape
+      model: photorealistic
+      cfg: 3.5
+      example: "the Isle of Wight from Southsea beach at dusk"
+
+    macro:
+      family: photo
+      description: "Extreme close-up photograph of small subjects"
+      choose_when: "macro, close-up of an insect, flower, droplet, texture or small object"
+      prompt: "macro photograph of X, 1:1 magnification, razor-thin depth of field, fine detail, soft diffused light, clean blurred background"
+      avoid: "wide view, cluttered background, cartoon"
+      workflow: macro
+      model: photorealistic
+      cfg: 3.5
+      example: "a dewdrop on a spider's web"
+
+    product:
+      family: photo
+      description: "Clean studio product shot"
+      choose_when: "product shot, packshot, e-commerce, catalogue, an object for sale"
+      prompt: "studio product photograph of X, centred, seamless light-grey backdrop, softbox lighting, subtle reflection, crisp edges, commercial look"
+      avoid: "clutter, people, hands, harsh shadows, text, watermark"
+      workflow: square
+      model: photorealistic
+      cfg: 4.0
+      example: "a leather camera strap"
+
+    architecture:
+      family: photo
+      description: "Buildings, interiors and urban scenes"
+      choose_when: "building, architecture, interior, room, street, cityscape, bridge"
+      prompt: "architectural photograph of X, straight verticals, balanced composition, even light, clean lines, rich material detail"
+      avoid: "converging verticals, fisheye distortion, crowds"
+      workflow: landscape
+      model: photorealistic
+      cfg: 4.0
+      example: "the Spinnaker Tower from Gunwharf Quays at blue hour"
+
+    monochrome:
+      family: photo
+      description: "Black-and-white photograph"
+      choose_when: "black and white, monochrome, B&W, mono, film noir"
+      prompt: "black and white photograph of X, rich tonal range, deep blacks, fine film grain, strong contrast and shape"
+      avoid: "colour, sepia tint, washed-out greys"
+      workflow: landscape
+      model: photorealistic
+      cfg: 3.5
+      example: "a rainy Portsmouth street at night"
+
+    cinematic:
+      family: photo
+      description: "Film still with movie-style colour and framing"
+      choose_when: "cinematic, film still, movie scene, dramatic, widescreen"
+      prompt: "cinematic film still of X, anamorphic widescreen framing, moody colour grade, motivated lighting, shallow depth of field"
+      avoid: "flat lighting, snapshot, cartoon, text"
+      workflow: landscape
+      model: photorealistic
+      cfg: 3.0
+      example: "a lone lighthouse keeper climbing the stairs during a storm"
+
+    # ---------- Graphic ----------
+    clipart:
+      family: graphic
+      description: "Simple flat clip art"
+      choose_when: "clip art, clipart, cartoon, sticker, simple graphic, or a request naming a small colour palette"
+      prompt: "simple flat clip art illustration of X, bold solid colours, clean thick outlines, minimal detail, no shading, no gradients, vector graphic style"
+      avoid: "photograph, realistic, texture, shading, gradients, text"
+      workflow: clipart
+      lock_workflow: true
+      model: fast_preview
+      cfg: 3.0
+      background: "mid-blue"
+      example: "yellow frog clip art"
+
+    logo:
+      family: graphic
+      description: "Logo mark or emblem"
+      choose_when: "logo, emblem, badge, brand mark, monogram"
+      prompt: "minimal vector logo of X, single bold symbol, geometric shapes, two or three flat colours, strong silhouette, centred, generous margin"
+      avoid: "photograph, gradients, shading, clutter, small text, mockup"
+      workflow: clipart
+      lock_workflow: true
+      model: fast_preview
+      cfg: 3.5
+      background: "plain white"
+      example: "a logo for a Southsea photography studio using a camera and a wave"
+
+    icon:
+      family: graphic
+      description: "Single-glyph button or app icon, legible at small sizes"
+      choose_when: "icon, button, Stream Deck key, app icon, symbol, glyph, toolbar"
+      prompt: "flat icon of X, single centred glyph, thick rounded strokes, one or two high-contrast colours, no detail that disappears at small size"
+      avoid: "photograph, text, multiple objects, fine detail, shading, border"
+      workflow: clipart
+      lock_workflow: true
+      model: fast_preview
+      cfg: 3.5
+      background: "black"
+      example: "a Stream Deck icon for starting ComfyUI"
+
+    pixel_art:
+      family: graphic
+      description: "Retro 8-bit or 16-bit pixel art"
+      choose_when: "pixel art, 8-bit, 16-bit, retro game, sprite"
+      prompt: "pixel art of X, 16-bit retro game style, crisp square pixels, limited palette, no anti-aliasing"
+      avoid: "photograph, smooth gradients, blur, high detail, painterly"
+      workflow: square
+      lock_workflow: true
+      model: highest_quality
+      cfg: 4.0
+      example: "a pixel art sprite of a Portsmouth ferry"
+
+    vintage_poster:
+      family: graphic
+      description: "Retro travel or advertising poster"
+      choose_when: "poster, travel poster, retro poster, vintage advert, railway poster, art deco"
+      prompt: "vintage 1930s travel poster of X, flat screen-printed colour blocks, bold simplified shapes, art deco styling, limited warm palette, strong perspective"
+      avoid: "photograph, photorealism, gradients, small text, modern"
+      workflow: portrait
+      model: highest_quality
+      cfg: 3.5
+      example: "a railway poster for Southsea seafront"
+
+    # ---------- Art and illustration ----------
+    illustration:
+      family: art
+      description: "General digital illustration"
+      choose_when: "illustration, drawing, artwork, concept art, when no specific medium is named"
+      prompt: "digital illustration of X, clean confident linework, painterly shading, harmonious palette, clear focal point"
+      avoid: "photograph, photorealistic, 3D render, text"
+      workflow: landscape
+      model: highest_quality
+      cfg: 3.5
+      example: "an illustration of a fox reading a map in a forest"
+
+    watercolour:
+      family: art
+      description: "Loose, translucent watercolour painting"
+      choose_when: "watercolour, watercolor, wash, aquarelle"
+      prompt: "watercolour painting of X, loose wet-on-wet washes, soft bleeding edges, visible cold-press paper texture, white of the paper left as highlights, limited palette"
+      avoid: "photograph, hard digital lines, heavy outlines, 3D"
+      workflow: landscape
+      model: highest_quality
+      cfg: 3.0
+      example: "a heron at Langstone Harbour in watercolour"
+
+    oil_painting:
+      family: art
+      description: "Traditional oil painting on canvas"
+      choose_when: "oil painting, oils, impasto, painted on canvas, old master, impressionist"
+      prompt: "oil painting of X, visible impasto brushstrokes, canvas weave, rich layered colour, classical composition, painterly light"
+      avoid: "photograph, digital art, flat colour, outlines"
+      workflow: landscape
+      model: highest_quality
+      cfg: 3.0
+      example: "HMS Victory in dry dock as an impressionist oil painting"
+
+    pencil_sketch:
+      family: art
+      description: "Graphite or charcoal drawing"
+      choose_when: "pencil, sketch, graphite, charcoal, drawn by hand, study"
+      prompt: "graphite pencil sketch of X, expressive hatching and cross-hatching, varied line weight, smudged shading, off-white sketchbook paper"
+      avoid: "colour, photograph, digital painting, clean vector lines"
+      workflow: portrait
+      model: highest_quality
+      cfg: 3.5
+      example: "a pencil sketch of an old Leica camera"
+
+    line_art:
+      family: art
+      description: "Clean black ink outlines, colouring-book style"
+      choose_when: "line art, line drawing, ink drawing, outline, colouring page, tattoo flash"
+      prompt: "clean black ink line art of X, uniform confident outlines, no shading, no fill, pure white background, colouring-book style"
+      avoid: "colour, shading, grey tones, photograph, texture"
+      workflow: square
+      lock_workflow: true
+      model: highest_quality
+      cfg: 4.0
+      example: "a colouring page of a seahorse"
+
+    storybook:
+      family: art
+      description: "Warm children's picture-book illustration"
+      choose_when: "children's book, picture book, storybook, bedtime story, whimsical, cute scene"
+      prompt: "children's picture-book illustration of X, soft gouache textures, warm gentle palette, rounded friendly shapes, whimsical storytelling composition"
+      avoid: "photograph, scary, dark, realistic anatomy, text"
+      workflow: landscape
+      model: highest_quality
+      cfg: 3.5
+      example: "a hedgehog sailing a teacup across a pond"
+
+    3d_render:
+      family: art
+      description: "Polished 3D render or isometric scene"
+      choose_when: "3D, render, CGI, isometric, claymation, toy-like, diorama"
+      prompt: "3D render of X, soft studio lighting, smooth matte materials, gentle ambient occlusion, isometric or three-quarter view, clean minimal scene"
+      avoid: "photograph, flat 2D, sketch, noisy, text"
+      workflow: square
+      model: highest_quality
+      cfg: 3.5
+      example: "an isometric diorama of a tiny photography studio"
 
 generation:
   # Hard limits applied to whatever the LLM returns (fail-safe clamping).

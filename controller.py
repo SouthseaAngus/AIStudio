@@ -6,6 +6,8 @@ Usage:
     python controller.py "..." --workflow portrait --count 3
     python controller.py "..." --seed 12345
     python controller.py "..." --dry-run          # show the orchestrator JSON, generate nothing
+    python controller.py "..." --style watercolour  # force an image type
+    python controller.py --list-styles            # show the image types in config.yaml
 
 Flow:
     Prompt received -> Ollama orchestration -> workflow loaded -> parameters
@@ -33,7 +35,13 @@ from modules import prompt_builder, metadata
 
 def main():
     parser = argparse.ArgumentParser(description="AIStudio controller")
-    parser.add_argument("prompt", help="one-line description of the image you want")
+    parser.add_argument(
+        "prompt", nargs="?", help="one-line description of the image you want"
+    )
+    parser.add_argument("--style", help="force an image type from styles.types")
+    parser.add_argument(
+        "--list-styles", action="store_true", help="list the image types and exit"
+    )
     parser.add_argument("--workflow", help="override the LLM's workflow choice")
     parser.add_argument("--model", help="override the LLM's model capability choice")
     parser.add_argument("--seed", type=int, help="fixed seed for reproducibility")
@@ -46,9 +54,22 @@ def main():
     args = parser.parse_args()
 
     logger = RunLogger()
+
+    if args.list_styles:
+        cfg = load_config(BASE_DIR / "config.yaml", logger)
+        print(prompt_builder.list_styles(cfg))
+        return
+    if not args.prompt:
+        parser.error("a prompt is required (or use --list-styles)")
+
     logger.log("Prompt received")
 
     cfg = load_config(BASE_DIR / "config.yaml", logger)
+    if args.style and args.style not in cfg["styles"]["types"]:
+        logger.fail(
+            f"--style '{args.style}' not in styles.types "
+            f"(see: python controller.py --list-styles)"
+        )
 
     ollama = OllamaClient(cfg, logger)
     ollama.check_available()
@@ -58,14 +79,26 @@ def main():
         comfy.start_if_needed()  # overlaps ComfyUI cold start with orchestration
 
     system_prompt = prompt_builder.build_system_prompt(cfg)
-    spec = ollama.structured_json(system_prompt, args.prompt)
+    user_prompt = args.prompt
+    if args.style:
+        user_prompt += f"\n\nRequired style: {args.style}"
+    spec = ollama.structured_json(system_prompt, user_prompt)
     logger.log("Ollama completed")
+    if args.style:
+        spec["style"] = args.style
 
     spec = prompt_builder.validate_and_clamp(spec, cfg, logger)
     if args.workflow:
         if args.workflow not in cfg["workflows"]["map"]:
             logger.fail(f"--workflow '{args.workflow}' not in workflows.map")
-        spec["workflow"] = args.workflow
+        locked = cfg["styles"]["types"][spec["style"]]
+        if locked.get("lock_workflow") and args.workflow != locked["workflow"]:
+            logger.log(
+                f"WARN: style '{spec['style']}' has a fixed workflow; "
+                f"ignoring --workflow {args.workflow}"
+            )
+        else:
+            spec["workflow"] = args.workflow
     if args.model:
         if args.model not in cfg["models"]["map"]:
             logger.fail(f"--model '{args.model}' not in models.map")

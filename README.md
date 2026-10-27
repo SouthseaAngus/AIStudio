@@ -98,6 +98,19 @@ temperature 0. From your installed set:
 
 Switching is one line in `config.yaml`.
 
+## Image types
+
+The orchestrator chooses from 20 image types (photographic, graphic, and art
+and illustration), defined in `styles.types` in `config.yaml`. Each type sets
+its prompt pattern, shape, model, guidance and negative prompt. See
+[documentation/Image Types.md](documentation/Image%20Types.md) for every type
+with an example, and how to add your own.
+
+```
+python controller.py --list-styles
+python controller.py "a heron at Langstone Harbour" --style watercolour
+```
+
 ## Using your own workflows
 
 Any ComfyUI graph can be dropped in:
@@ -121,6 +134,8 @@ python controller.py "prompt"                  # full run
 python controller.py "prompt" --dry-run        # orchestration only
 python controller.py "prompt" --workflow portrait
 python controller.py "prompt" --model fast_preview
+python controller.py "prompt" --style watercolour   # force an image type
+python controller.py --list-styles               # list image types
 python controller.py "prompt" --seed 12345     # reproducible
 python controller.py "prompt" --count 3        # batch of 3
 ```

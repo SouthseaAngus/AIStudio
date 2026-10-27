@@ -14,6 +14,7 @@ class OllamaClient:
         self.host = cfg["ollama"]["host"].rstrip("/")
         self.model = cfg["ollama"]["orchestrator_model"]
         self.temperature = cfg["ollama"]["temperature"]
+        self.num_ctx = cfg["ollama"]["num_ctx"]
         self.logger = logger
 
     def check_available(self):
@@ -50,7 +51,7 @@ class OllamaClient:
             "model": self.model,
             "stream": False,
             "format": "json",
-            "options": {"temperature": self.temperature},
+            "options": {"temperature": self.temperature, "num_ctx": self.num_ctx},
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},

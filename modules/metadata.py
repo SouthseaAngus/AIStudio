@@ -42,6 +42,7 @@ def build_metadata(
     return {
         "user_prompt": user_prompt,
         "title": spec["title"],
+        "style": spec["style"],
         "positive": spec["positive"],
         "negative": spec["negative"],
         "workflow": workflow_name,
