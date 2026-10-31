@@ -108,3 +108,18 @@ def _check_styles(cfg: dict, logger):
             logger.fail(f"config: {where}.lock_workflow must be true or false")
         if "background" in st and not isinstance(st["background"], str):
             logger.fail(f"config: {where}.background must be a string")
+        if "example_image" in st and not isinstance(st["example_image"], str):
+            logger.fail(f"config: {where}.example_image must be a string")
+
+    text = cfg["styles"].get("text")
+    if not isinstance(text, dict):
+        logger.fail("config missing section: styles.text")
+    for key in ("model", "guidance", "max_length"):
+        if key not in text:
+            logger.fail(f"config missing key: styles.text.{key}")
+    if text["model"] not in cfg["models"]["map"]:
+        logger.fail(f"config: styles.text.model '{text['model']}' is not a key of models.map")
+    if not isinstance(text["guidance"], (int, float)) or isinstance(text["guidance"], bool):
+        logger.fail("config: styles.text.guidance must be a number")
+    if not isinstance(text["max_length"], int) or text["max_length"] < 1:
+        logger.fail("config: styles.text.max_length must be a positive integer")

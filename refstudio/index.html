@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RefStudio</title>
+<style>
+  :root {
+    --bg: #15171a; --panel: #1d2024; --panel-2: #24282d; --line: #33383f;
+    --text: #e8e6e3; --muted: #9aa1a9; --accent: #e0a24a; --accent-ink: #1b1408;
+    --ok: #5fb37a; --bad: #e0675a; --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
+  header { display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+  header h1 span { color: var(--accent); }
+  .pill { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
+  main { display: grid; grid-template-columns: minmax(380px, 470px) 1fr; gap: 20px; padding: 20px 22px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  label.f { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; text-transform: uppercase; letter-spacing: .6px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 10px; font: inherit; }
+  textarea { min-height: 120px; resize: vertical; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .field { margin-bottom: 14px; }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { background: var(--panel-2); color: var(--muted); border: 0; padding: 8px 4px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .drop { border: 1.5px dashed var(--line); border-radius: var(--radius); padding: 10px; transition: border-color .15s, background .15s; }
+  .drop.over { border-color: var(--accent); background: rgba(224,162,74,.07); }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .slot { aspect-ratio: 1; border-radius: 7px; background: var(--panel-2); position: relative; overflow: hidden; }
+  .slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .slot .x { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; border: 0;
+    background: rgba(0,0,0,.65); color: #fff; cursor: pointer; font-size: 14px; line-height: 22px; padding: 0; }
+  .slot .n { position: absolute; left: 5px; bottom: 4px; font-size: 11px; color: #fff; text-shadow: 0 1px 2px #000; }
+  .slot.empty { display: grid; place-items: center; color: var(--muted); font-size: 22px; cursor: pointer; border: 1px solid transparent; }
+  .slot.empty:hover { border-color: var(--line); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .warn { color: var(--accent); }
+  .actions { display: flex; gap: 10px; margin-top: 4px; }
+  button.primary { flex: 1; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px;
+    padding: 11px; font: inherit; font-weight: 650; cursor: pointer; }
+  button.primary:disabled { opacity: .45; cursor: default; }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 12px; font: inherit; cursor: pointer; }
+  button.ghost:hover { border-color: var(--muted); }
+  .check { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin: 2px 0 14px; }
+  .status { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
+  .status .msg { font-weight: 600; }
+  .status .time { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .bar { grid-column: 1 / -1; height: 4px; background: var(--panel-2); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .6s; }
+  .log { grid-column: 1 / -1; font: 11.5px/1.5 ui-monospace, Menlo, monospace; color: var(--muted); margin-top: 8px; white-space: pre-wrap; max-height: 7.5em; overflow: auto; }
+  .viewer { margin-top: 16px; }
+  .stage { background: #0e0f11; border-radius: var(--radius); min-height: 320px; display: grid; place-items: center; overflow: hidden; }
+  .stage img { max-width: 100%; max-height: 70vh; display: block; }
+  .stage .empty { color: var(--muted); padding: 40px; text-align: center; }
+  .strip { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .strip img { width: 74px; height: 74px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+  .strip img.on { border-color: var(--accent); }
+  .meta { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+  .meta b { color: var(--text); font-weight: 600; }
+  .tools { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin: 26px 0 10px; }
+  .history { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; cursor: pointer; }
+  .card:hover { border-color: var(--muted); }
+  .card img { width: 100%; aspect-ratio: 3/2; object-fit: cover; display: block; background: #0e0f11; }
+  .card div { padding: 8px 10px; }
+  .card b { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card small { color: var(--muted); }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--bad); color: #fff;
+    padding: 10px 16px; border-radius: 8px; display: none; max-width: 80vw; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ref<span>Studio</span></h1>
+  <span class="pill"><span class="dot" id="comfyDot"></span><span id="comfyText">Checking ComfyUI</span></span>
+  <span class="pill" id="modelText"></span>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="field">
+      <label class="f" for="label">Label</label>
+      <input type="text" id="label" placeholder="e.g. Spinnaker from a yacht" maxlength="60">
+    </div>
+    <div class="field">
+      <label class="f" for="prompt">Prompt</label>
+      <textarea id="prompt" placeholder="Describe the new picture. Refer to the subject as 'the tower from the reference images' rather than by name."></textarea>
+    </div>
+
+    <div class="field">
+      <label class="f">Reference images</label>
+      <div class="drop" id="drop">
+        <div class="grid" id="grid"></div>
+        <div class="hint"><span id="refCount">0 / 16</span><span id="refNote">Drop, paste or click + to add photos</span></div>
+      </div>
+      <input type="file" id="picker" accept="image/*" multiple hidden>
+    </div>
+
+    <div class="field">
+      <label class="f">Shape</label>
+      <div class="seg" id="shape">
+        <button data-v="landscape" class="on">Landscape</button>
+        <button data-v="portrait">Portrait</button>
+        <button data-v="square">Square</button>
+        <button data-v="wide">Wide</button>
+      </div>
+    </div>
+
+    <div class="row field">
+      <div><label class="f" for="count">Images</label>
+        <select id="count"><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+      <div><label class="f" for="steps">Steps</label><input type="number" id="steps" value="28" min="4" max="60"></div>
+      <div><label class="f" for="guidance">Guidance</label><input type="number" id="guidance" value="4.0" min="1" max="10" step="0.5"></div>
+      <div><label class="f" for="seed">Seed</label><input type="number" id="seed" placeholder="random"></div>
+    </div>
+    <label class="check"><input type="checkbox" id="unload" checked> Free Ollama's memory first (FLUX.2 needs ~65 GB)</label>
+
+    <div class="actions">
+      <button class="primary" id="go">Generate</button>
+      <button class="ghost" id="cancel" hidden>Cancel</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="panel status" id="status">
+      <span class="msg" id="stMsg">Ready</span><span class="time" id="stTime"></span>
+      <span class="meta" id="stEst" style="grid-column:1/-1;margin:0"></span>
+      <div class="bar"><i id="stBar"></i></div>
+      <div class="log" id="stLog"></div>
+    </div>
+
+    <div class="viewer">
+      <div class="stage" id="stage"><div class="empty">Your images appear here.<br>The first run after starting ComfyUI loads ~60 GB of model and takes a while.</div></div>
+      <div class="strip" id="strip"></div>
+      <div class="meta" id="vMeta"></div>
+      <div class="tools" id="vTools" hidden>
+        <button class="ghost" id="tOpen">Open full size</button>
+        <button class="ghost" id="tRef">Use as reference</button>
+        <button class="ghost" id="tReuse">Reuse settings</button>
+        <button class="ghost" id="tFolder">Show folder</button>
+      </div>
+    </div>
+
+    <h2>Recent runs</h2>
+    <div class="history" id="history"></div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const MAX_EDGE = 2048;          // references are sent at up to this size; ComfyUI scales them again
+let MAX_REFS = 16, DOC_REFS = 10, BUDGET = 4.0;
+let refs = [];                  // {name, data}
+let shape = "landscape";
+let jobId = null, pollTimer = null, lastPerImage = null;
+let history = [], view = null;  // view: {run, i}
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 6000); }
+function fmt(s) { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60); return m ? `${m}m ${String(s % 60).padStart(2, "0")}s` : `${s}s`; }
+function store(k, v) { try { localStorage.setItem("refstudio." + k, v); } catch (e) {} }
+function recall(k) { try { return localStorage.getItem("refstudio." + k); } catch (e) { return null; } }
+
+// ------------------------------------------------------------ references
+function mpPerRef(n) { return Math.min(1, Math.max(0.25, BUDGET / Math.max(n, 1))); }
+
+function renderRefs() {
+  const g = $("grid"); g.innerHTML = "";
+  refs.forEach((r, i) => {
+    const d = document.createElement("div"); d.className = "slot";
+    d.innerHTML = `<img alt=""><span class="n">${i + 1}</span><button class="x" title="Remove">×</button>`;
+    d.querySelector("img").src = r.data;
+    d.querySelector(".x").onclick = () => { refs.splice(i, 1); renderRefs(); };
+    g.appendChild(d);
+  });
+  const n0 = refs.length;
+  const empties = n0 >= MAX_REFS ? 0 : Math.min(MAX_REFS - n0, n0 === 0 ? 4 : ((4 - n0 % 4) % 4 || 4));
+  for (let i = 0; i < empties; i++) {
+    const e = document.createElement("div"); e.className = "slot empty"; e.textContent = "+";
+    e.onclick = () => $("picker").click(); g.appendChild(e);
+  }
+  $("refCount").textContent = `${refs.length} / ${MAX_REFS}`;
+  const n = refs.length, note = $("refNote");
+  if (!n) { note.textContent = "Drop, paste or click + to add photos"; note.className = ""; }
+  else if (n > DOC_REFS) { note.textContent = `FLUX.2 is documented for up to ${DOC_REFS}; more may blur the likeness. ${mpPerRef(n).toFixed(2)} MP each`; note.className = "warn"; }
+  else { note.textContent = `Each reference used at ${mpPerRef(n).toFixed(2)} MP`; note.className = ""; }
+}
+
+function loadImage(src) {
+  return new Promise((ok, bad) => { const im = new Image(); im.onload = () => ok(im); im.onerror = bad; im.src = src; });
+}
+
+async function fileToRef(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const im = await loadImage(url);
+    const k = Math.min(1, MAX_EDGE / Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
+    c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+    return { name: file.name || "reference", data: c.toDataURL("image/jpeg", 0.92) };
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function addFiles(files) {
+  const imgs = [...files].filter(f => f.type.startsWith("image/") || /\.(jpe?g|png|heic|tiff?|webp)$/i.test(f.name));
+  if (!imgs.length) return;
+  let skipped = 0;
+  for (const f of imgs) {
+    if (refs.length >= MAX_REFS) { skipped++; continue; }
+    try { refs.push(await fileToRef(f)); renderRefs(); }
+    catch (e) { toast(`Couldn't read ${f.name}. Try exporting it as JPEG.`); }
+  }
+  if (skipped) toast(`Only ${MAX_REFS} references allowed: ${skipped} not added.`);
+}
+
+async function addFromUrl(url, name) {
+  const b = await (await fetch(url)).blob();
+  await addFiles([new File([b], name || "reference.png", { type: b.type || "image/png" })]);
+}
+
+const drop = $("drop");
+["dragenter", "dragover"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", ev => addFiles(ev.dataTransfer.files));
+document.addEventListener("dragover", ev => ev.preventDefault());
+document.addEventListener("drop", ev => { if (!drop.contains(ev.target)) { ev.preventDefault(); addFiles(ev.dataTransfer.files); } });
+document.addEventListener("paste", ev => { const f = [...(ev.clipboardData?.files || [])]; if (f.length) addFiles(f); });
+$("picker").onchange = ev => { addFiles(ev.target.files); ev.target.value = ""; };
+
+// ------------------------------------------------------------ form
+$("shape").onclick = ev => { const b = ev.target.closest("button"); if (!b) return; setShape(b.dataset.v); };
+function setShape(v) { shape = v; [...$("shape").children].forEach(b => b.classList.toggle("on", b.dataset.v === v)); store("shape", v); }
+["label", "prompt"].forEach(k => { const v = recall(k); if (v) $(k).value = v; $(k).oninput = () => store(k, $(k).value); });
+if (recall("shape")) setShape(recall("shape"));
+
+$("go").onclick = async () => {
+  const prompt = $("prompt").value.trim();
+  if (!prompt) { toast("Write a prompt first."); $("prompt").focus(); return; }
+  if (!refs.length && !confirm("No reference images: generate from the prompt alone?")) return;
+  setBusy(true); showStatus({ state: "queued", message: "Sending references", created: Date.now() / 1000, now: Date.now() / 1000 });
+  try {
+    const r = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: $("label").value, prompt, refs, shape, steps: $("steps").value,
+        guidance: $("guidance").value, count: $("count").value, seed: $("seed").value, unload_ollama: $("unload").checked }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.statusText);
+    jobId = j.id; poll();
+  } catch (e) { setBusy(false); showStatus({ state: "error", message: e.message }); }
+};
+$("cancel").onclick = () => fetch("/api/cancel", { method: "POST", body: "{}" });
+
+function setBusy(b) { $("go").disabled = b; $("go").textContent = b ? "Generating…" : "Generate"; $("cancel").hidden = !b; }
+
+// ------------------------------------------------------------ status
+function showStatus(j) {
+  $("stMsg").textContent = j.message || j.state;
+  $("stMsg").style.color = j.state === "error" ? "var(--bad)" : j.state === "done" ? "var(--ok)" : "";
+  const end = j.finished || j.now;
+  $("stTime").textContent = j.created && end ? fmt(end - j.created) : "";
+  let pct = 0;
+  if (j.state === "done") pct = 100;
+  else if (j.state === "generating" && j.count) {
+    const per = lastPerImage || 0, done = (j.index - 1) / j.count;
+    const part = per && j.image_started ? Math.min(0.95, (j.now - j.image_started) / per) : 0.3;
+    pct = 100 * (done + part / j.count);
+  } else if (j.state && j.state !== "error" && j.state !== "cancelled") pct = 3;
+  $("stBar").style.width = pct + "%";
+  $("stEst").textContent = (j.state === "generating" || j.state === "uploading" || j.state === "starting") && lastPerImage
+    ? `Last run took about ${fmt(lastPerImage)} per image once loaded.` : "";
+  $("stLog").textContent = (j.log || []).join("\n");
+}
+
+async function poll() {
+  clearTimeout(pollTimer);
+  if (!jobId) return;
+  try {
+    const j = await (await fetch(`/api/jobs/${jobId}`)).json();
+    showStatus(j);
+    if (j.images?.length) showRun({ folder: j.folder, label: j.label, images: j.images, prompt: $("prompt").value, seed: j.seed }, j.images.length - 1, true);
+    if (["done", "error", "cancelled"].includes(j.state)) {
+      setBusy(false); jobId = null; await loadHistory();
+      if (j.state === "done" && history[0] && history[0].folder === j.folder) showRun(history[0], 0);
+      return;
+    }
+  } catch (e) { /* server restarting: keep trying */ }
+  pollTimer = setTimeout(poll, 1500);
+}
+
+// ------------------------------------------------------------ viewer
+function showRun(run, i, live) {
+  view = { run, i };
+  $("stage").innerHTML = `<img alt="">`; $("stage").querySelector("img").src = run.images[i];
+  const s = $("strip"); s.innerHTML = "";
+  if (run.images.length > 1) run.images.forEach((u, k) => {
+    const im = document.createElement("img"); im.src = u; im.className = k === i ? "on" : "";
+    im.onclick = () => showRun(run, k, live); s.appendChild(im);
+  });
+  const bits = [`<b>${esc(run.label || "")}</b>`];
+  if (run.seed != null) bits.push(`seed ${run.seed + i}`);
+  if (run.steps) bits.push(`${run.steps} steps`);
+  if (run.refs) bits.push(`${run.refs.length} reference${run.refs.length === 1 ? "" : "s"}`);
+  if (run.seconds_per_image) bits.push(`${fmt(run.seconds_per_image)} per image`);
+  $("vMeta").innerHTML = bits.join(" · ") + (run.prompt ? `<br>${esc(run.prompt)}` : "");
+  $("vTools").hidden = false;
+  $("tReuse").hidden = !run.refs;
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+$("tOpen").onclick = () => view && window.open(view.run.images[view.i], "_blank");
+$("tRef").onclick = () => view && addFromUrl(view.run.images[view.i], `${view.run.label || "result"}.png`);
+$("tFolder").onclick = () => view && fetch("/api/reveal", { method: "POST", body: JSON.stringify({ folder: view.run.folder }) });
+$("tReuse").onclick = async () => {
+  if (!view || !view.run.refs) return;
+  const r = view.run;
+  $("label").value = r.label || ""; $("prompt").value = r.prompt || "";
+  store("label", $("label").value); store("prompt", $("prompt").value);
+  if (r.shape) setShape(r.shape);
+  if (r.steps) $("steps").value = r.steps;
+  if (r.guidance) $("guidance").value = r.guidance;
+  refs = []; renderRefs();
+  for (const u of r.refs) await addFromUrl(u, decodeURIComponent(u.split("/").pop()));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
+// ------------------------------------------------------------ history
+async function loadHistory() {
+  try { history = await (await fetch("/api/history")).json(); } catch (e) { return; }
+  lastPerImage = history.find(h => h.seconds_per_image)?.seconds_per_image || lastPerImage;
+  const h = $("history"); h.innerHTML = "";
+  if (!history.length) { h.innerHTML = `<p class="meta">No runs yet.</p>`; return; }
+  history.forEach(run => {
+    const c = document.createElement("div"); c.className = "card";
+    const when = (run.finished || "").replace("T", " ").slice(0, 16);
+    c.innerHTML = `<img alt="" loading="lazy"><div><b></b><small></small></div>`;
+    if (run.images[0]) c.querySelector("img").src = run.images[0];
+    c.querySelector("b").textContent = run.label || "Untitled";
+    c.querySelector("small").textContent = `${when} · ${run.images.length} image${run.images.length === 1 ? "" : "s"}`;
+    c.onclick = () => { showRun(run, 0); window.scrollTo({ top: 0, behavior: "smooth" }); };
+    h.appendChild(c);
+  });
+}
+
+async function refreshStatus(first) {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    MAX_REFS = s.max_refs; DOC_REFS = s.documented_refs; BUDGET = s.ref_budget_mp;
+    $("comfyDot").className = "dot " + (s.comfy ? "ok" : "bad");
+    $("comfyText").textContent = s.comfy ? "ComfyUI running" : "ComfyUI stopped (starts when you generate)";
+    $("modelText").textContent = s.model;
+    if (first) { renderRefs(); if (s.busy && s.job) { jobId = s.job.id; setBusy(true); poll(); } }
+  } catch (e) { $("comfyDot").className = "dot bad"; $("comfyText").textContent = "RefStudio server not responding"; }
+}
+
+renderRefs();
+refreshStatus(true); loadHistory();
+setInterval(refreshStatus, 10000);
+</script>
+</body>
+</html>

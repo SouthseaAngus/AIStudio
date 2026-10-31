@@ -14,3 +14,6 @@ __pycache__/
 # Future prompt-memory database (v1.0) — data, not code
 database/*.sqlite
 database/*.db
+
+# RefStudio server log
+refstudio/*.log

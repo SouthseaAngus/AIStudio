@@ -71,7 +71,16 @@ styles:
   #   cfg           FLUX guidance used for every run of this type
   #   background    optional; the prompt must end "on a <colour> background"
   #   example       a typical request
+  #   example_image optional; pin the documentation's example to this run folder
+  #                 under Output/ (e.g. "2026/10/2026-10-28 Southsea Seafront Railway Poster")
   default: "photo"
+  # When the request asks for words in the image (a title, a name, a sign),
+  # the orchestrator puts them in the "text" field and these settings apply:
+  # Schnell can't spell, so text always goes to this model, at least this guidance.
+  text:
+    model: "highest_quality"
+    guidance: 4.0
+    max_length: 40   # longer text is allowed but warned about: FLUX starts misspelling
   types:
 
     # ---------- Photographic ----------

@@ -2,7 +2,7 @@
 
 AIStudio can produce **20 types of image**. Each type is defined once, in the `styles.types` section of `config.yaml`, and that one definition drives everything: the catalogue the orchestrator LLM chooses from, how it writes the prompt, the shape and model used, the FLUX guidance, the negative prompt and the safety checks applied afterwards.
 
-This document is generated from `config.yaml`. If you change a type there, regenerate it (see *Keeping this document current* at the end).
+This document is generated from `config.yaml`, and every example image is a real AIStudio run from your Output folder, shown with the request and the prompt that produced it. Regenerate it after changing a type or making better examples (see *Keeping this document current* at the end).
 
 ## Choosing a type
 
@@ -15,9 +15,25 @@ python controller.py "a heron at Langstone Harbour" --style watercolour
 python controller.py --list-styles
 ```
 
-![](/Users/angus/AIStudio/Output/2026/10/2026-10-27 Heron at Langstone Harbour/Image_01.png)
-
 `--style` tells the LLM which type to write for, so the prompt is written in that type's language, not just relabelled. `--workflow` and `--model` still override shape and model afterwards, except that a type with a fixed workflow keeps it.
+
+## Words in the image
+
+Any type can carry words: a poster title, a logo's name, a sign. Ask for them and put the exact words in quotes:
+
+```zsh
+python controller.py 'a railway poster for Southsea seafront titled "SOUTHSEA"'
+python controller.py 'a logo for my studio reading "Angus Photo"'
+```
+
+The orchestrator copies the words into a `text` field and writes them into the prompt in quotes, with their style and position. AIStudio then makes sure they can be read:
+
+- the run switches to `highest_quality`, because FLUX Schnell can't spell;
+- guidance is raised to at least 4.0, so FLUX sticks to the wording;
+- "text", "lettering" and similar are removed from the negative prompt;
+- anything over 40 characters is allowed but warned about: short wording, a word or two, renders most reliably.
+
+Without quoted words FLUX may still invent some lettering, and invented lettering is usually gibberish. Settings are in `styles.text` in `config.yaml`; the words used are recorded in each run's `Metadata.json`.
 
 ## The three families
 
@@ -33,34 +49,34 @@ Every type belongs to a family, which sets the vocabulary the LLM is allowed to 
 
 | Type | Produces | Shape | Model | Guidance |
 |---|---|---|---|---|
-| `photo` | General realistic photograph | landscape, 1536x1024 | photorealistic | 3.5 |
-| `portrait` | Photographic portrait of a person or animal | portrait, 1024x1536 | photorealistic | 3.0 |
-| `landscape` | Wide scenic photograph of land, sea or sky | landscape, 1536x1024 | photorealistic | 3.5 |
-| `macro` | Extreme close-up photograph of small subjects | macro, 1344x1024 | photorealistic | 3.5 |
-| `product` | Clean studio product shot | square, 1152x1152 | photorealistic | 4.0 |
-| `architecture` | Buildings, interiors and urban scenes | landscape, 1536x1024 | photorealistic | 4.0 |
-| `monochrome` | Black-and-white photograph | landscape, 1536x1024 | photorealistic | 3.5 |
-| `cinematic` | Film still with movie-style colour and framing | landscape, 1536x1024 | photorealistic | 3.0 |
-| `clipart` | Simple flat clip art | clipart (fixed), 1024x1024 | fast_preview | 3.0 |
-| `logo` | Logo mark or emblem | clipart (fixed), 1024x1024 | fast_preview | 3.5 |
-| `icon` | Single-glyph button or app icon, legible at small sizes | clipart (fixed), 1024x1024 | fast_preview | 3.5 |
-| `pixel_art` | Retro 8-bit or 16-bit pixel art | square (fixed), 1152x1152 | highest_quality | 4.0 |
-| `vintage_poster` | Retro travel or advertising poster | portrait, 1024x1536 | highest_quality | 3.5 |
-| `illustration` | General digital illustration | landscape, 1536x1024 | highest_quality | 3.5 |
-| `watercolour` | Loose, translucent watercolour painting | landscape, 1536x1024 | highest_quality | 3.0 |
-| `oil_painting` | Traditional oil painting on canvas | landscape, 1536x1024 | highest_quality | 3.0 |
-| `pencil_sketch` | Graphite or charcoal drawing | portrait, 1024x1536 | highest_quality | 3.5 |
-| `line_art` | Clean black ink outlines, colouring-book style | square (fixed), 1152x1152 | highest_quality | 4.0 |
-| `storybook` | Warm children's picture-book illustration | landscape, 1536x1024 | highest_quality | 3.5 |
-| `3d_render` | Polished 3D render or isometric scene | square, 1152x1152 | highest_quality | 3.5 |
+| [`photo`](#photo) | General realistic photograph | landscape, 1536x1024 | photorealistic | 3.5 |
+| [`portrait`](#portrait) | Photographic portrait of a person or animal | portrait, 1024x1536 | photorealistic | 3.0 |
+| [`landscape`](#landscape) | Wide scenic photograph of land, sea or sky | landscape, 1536x1024 | photorealistic | 3.5 |
+| [`macro`](#macro) | Extreme close-up photograph of small subjects | macro, 1344x1024 | photorealistic | 3.5 |
+| [`product`](#product) | Clean studio product shot | square, 1152x1152 | photorealistic | 4.0 |
+| [`architecture`](#architecture) | Buildings, interiors and urban scenes | landscape, 1536x1024 | photorealistic | 4.0 |
+| [`monochrome`](#monochrome) | Black-and-white photograph | landscape, 1536x1024 | photorealistic | 3.5 |
+| [`cinematic`](#cinematic) | Film still with movie-style colour and framing | landscape, 1536x1024 | photorealistic | 3.0 |
+| [`clipart`](#clipart) | Simple flat clip art | clipart (fixed), 1024x1024 | fast_preview | 3.0 |
+| [`logo`](#logo) | Logo mark or emblem | clipart (fixed), 1024x1024 | fast_preview | 3.5 |
+| [`icon`](#icon) | Single-glyph button or app icon, legible at small sizes | clipart (fixed), 1024x1024 | fast_preview | 3.5 |
+| [`pixel_art`](#pixel_art) | Retro 8-bit or 16-bit pixel art | square (fixed), 1152x1152 | highest_quality | 4.0 |
+| [`vintage_poster`](#vintage_poster) | Retro travel or advertising poster | portrait, 1024x1536 | highest_quality | 3.5 |
+| [`illustration`](#illustration) | General digital illustration | landscape, 1536x1024 | highest_quality | 3.5 |
+| [`watercolour`](#watercolour) | Loose, translucent watercolour painting | landscape, 1536x1024 | highest_quality | 3.0 |
+| [`oil_painting`](#oil_painting) | Traditional oil painting on canvas | landscape, 1536x1024 | highest_quality | 3.0 |
+| [`pencil_sketch`](#pencil_sketch) | Graphite or charcoal drawing | portrait, 1024x1536 | highest_quality | 3.5 |
+| [`line_art`](#line_art) | Clean black ink outlines, colouring-book style | square (fixed), 1152x1152 | highest_quality | 4.0 |
+| [`storybook`](#storybook) | Warm children's picture-book illustration | landscape, 1536x1024 | highest_quality | 3.5 |
+| [`3d_render`](#3d_render) | Polished 3D render or isometric scene | square, 1152x1152 | highest_quality | 3.5 |
 
-Shape is the default workflow and its canvas size; the LLM may adjust the size to suit the content. Model `photorealistic` and `highest_quality` are FLUX Dev (about 10 minutes per image); `fast_preview` is FLUX Schnell (about 20 seconds, capped at 4 steps).
+Shape is the default workflow and its canvas size; the LLM may adjust the size to suit the content. Models `photorealistic` and `highest_quality` are FLUX Dev; `fast_preview` is FLUX Schnell (capped at 4 steps).
 
 ## Photographic types
 
-### `photo`: General realistic photograph
+### `photo`
 
-**Chosen when:** the user asks for a photo, picture or realistic image and no more specific photographic type fits.
+**General realistic photograph.** Chosen when: the user asks for a photo, picture or realistic image and no more specific photographic type fits.
 
 | Setting | Value |
 |---|---|
@@ -79,15 +95,17 @@ Shape is the default workflow and its canvas size; the LLM may adjust the size t
 python controller.py "a red kite flying over Southsea Castle at sunrise"
 ```
 
-![](/Users/angus/AIStudio/Output/2026/10/2026-10-27 Red Kite Over Southsea Castle/Image_01.png)
+![photo example: a red kite flying over Southsea Castle at sunrise](images/photo.jpg)
 
-The orchestrator writes a positive prompt along these lines:
+<sub>`photorealistic` · 30 steps · seed 530257450 · 26 s · orchestrator chose `landscape` · Output/2026/10/2026-10-27 Red Kite Over Southsea Castle</sub>
 
-> photograph of a red kite flying over Southsea Castle at sunrise, natural light, true-to-life colour, sharp focus on the subject, believable setting
+Prompt the orchestrator wrote:
 
-### `portrait`: Photographic portrait of a person or animal
+> landscape photograph of a vibrant red kite soaring above the historic stone walls of Southsea Castle at sunrise, wide-angle, golden-hour light, strong foreground interest, deep focus, atmospheric depth
 
-**Chosen when:** portrait, headshot, close-up of a face, a person posing, pet portrait.
+### `portrait`
+
+**Photographic portrait of a person or animal.** Chosen when: portrait, headshot, close-up of a face, a person posing, pet portrait.
 
 | Setting | Value |
 |---|---|
@@ -106,15 +124,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "an elderly fisherman mending nets on Hayling Island"
 ```
 
-![](/Users/angus/AIStudio/Output/2026/10/2026-10-27 Fisherman Mending Nets/Image_01.png)
+![portrait example: an elderly fisherman mending nets on Hayling Island](images/portrait.jpg)
 
-The orchestrator writes a positive prompt along these lines:
+<sub>`photorealistic` · 30 steps · seed 3783687899 · 36 s · orchestrator chose `photo` · Output/2026/10/2026-10-27 Fisherman Mending Nets</sub>
 
-> portrait photograph of an elderly fisherman mending nets on Hayling Island, weathered face, wool jumper, 85mm lens, shallow depth of field, soft directional window light, natural skin texture, eyes in sharp focus
+Prompt the orchestrator wrote:
 
-### `landscape`: Wide scenic photograph of land, sea or sky
+> photograph of an elderly fisherman with weathered skin and a worn cap mending large, tangled fishing nets on a rustic wooden pier at Hayling Island, natural light, true-to-life colour, sharp focus on the subject, believable setting
 
-**Chosen when:** landscape, seascape, scenery, view, coastline, mountains, sunset over somewhere.
+### `landscape`
+
+**Wide scenic photograph of land, sea or sky.** Chosen when: landscape, seascape, scenery, view, coastline, mountains, sunset over somewhere.
 
 | Setting | Value |
 |---|---|
@@ -133,15 +153,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "the Isle of Wight from Southsea beach at dusk"
 ```
 
-![](/Users/angus/AIStudio/Output/2026/10/2026-10-27 Isle of Wight Dusk View/Image_01.png)
+![landscape example: the Isle of Wight from Southsea beach at dusk](images/landscape.jpg)
 
-The orchestrator writes a positive prompt along these lines:
+<sub>`photorealistic` · 30 steps · seed 2939233130 · 32 s · Output/2026/10/2026-10-27 Isle of Wight Dusk View</sub>
 
-> landscape photograph of the Isle of Wight seen from Southsea beach at dusk, shingle in the foreground, wide-angle, golden-hour light, strong foreground interest, deep focus, atmospheric depth
+Prompt the orchestrator wrote:
 
-### `macro`: Extreme close-up photograph of small subjects
+> landscape photograph of the Isle of Wight visible across the Solent from the shoreline of Southsea beach at dusk, wide-angle, golden-hour light, strong foreground interest, deep focus, atmospheric depth
 
-**Chosen when:** macro, close-up of an insect, flower, droplet, texture or small object.
+### `macro`
+
+**Extreme close-up photograph of small subjects.** Chosen when: macro, close-up of an insect, flower, droplet, texture or small object.
 
 | Setting | Value |
 |---|---|
@@ -160,15 +182,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "a dewdrop on a spider's web"
 ```
 
-![](/Users/angus/AIStudio/Output/2026/10/2026-10-27 Dewdrop on Spider Web/Image_01.png)
+![macro example: a dewdrop on a spider's web](images/macro.jpg)
 
-The orchestrator writes a positive prompt along these lines:
+<sub>`photorealistic` · 30 steps · seed 2677362612 · 36 s · Output/2026/10/2026-10-27 Dewdrop on Spider Web</sub>
 
-> macro photograph of a dewdrop on a spider's web, the garden reflected upside down inside it, 1:1 magnification, razor-thin depth of field, fine detail, soft diffused light, clean blurred background
+Prompt the orchestrator wrote:
 
-### `product`: Clean studio product shot
+> macro photograph of a single, crystal-clear dewdrop clinging to a delicate, intricate spider's web, 1:1 magnification, razor-thin depth of field, fine detail, soft diffused light, clean blurred background
 
-**Chosen when:** product shot, packshot, e-commerce, catalogue, an object for sale.
+### `product`
+
+**Clean studio product shot.** Chosen when: product shot, packshot, e-commerce, catalogue, an object for sale.
 
 | Setting | Value |
 |---|---|
@@ -187,15 +211,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "a leather camera strap"
 ```
 
-![](/Users/angus/AIStudio/Output/2026/10/2026-10-27 Leather Camera Strap Product Shot/Image_01.png)
+![product example: a leather camera strap](images/product.jpg)
 
-The orchestrator writes a positive prompt along these lines:
+<sub>`photorealistic` · 30 steps · seed 4155261712 · 36 s · Output/2026/10/2026-10-27 Leather Camera Strap Product Shot</sub>
 
-> studio product photograph of a brown leather camera strap, coiled, centred, seamless light-grey backdrop, softbox lighting, subtle reflection, crisp edges, commercial look
+Prompt the orchestrator wrote:
 
-### `architecture`: Buildings, interiors and urban scenes
+> studio product photograph of a premium handcrafted brown leather camera strap with brass hardware, centred, seamless light-grey backdrop, softbox lighting, subtle reflection, crisp edges, commercial look
 
-**Chosen when:** building, architecture, interior, room, street, cityscape, bridge.
+### `architecture`
+
+**Buildings, interiors and urban scenes.** Chosen when: building, architecture, interior, room, street, cityscape, bridge.
 
 | Setting | Value |
 |---|---|
@@ -214,15 +240,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "the Spinnaker Tower from Gunwharf Quays at blue hour"
 ```
 
-![](/Users/angus/AIStudio/Output/2026/10/2026-10-27 Spinnaker Tower Blue Hour (2)/Image_01.png)
+![architecture example: the Spinnaker Tower from Gunwharf Quays at blue hour](images/architecture.jpg)
 
-The orchestrator writes a positive prompt along these lines:
+<sub>`photorealistic` · 30 steps · seed 4283020715 · 36 s · Output/2026/10/2026-10-27 Spinnaker Tower Blue Hour (2)</sub>
 
-> architectural photograph of the Spinnaker Tower from Gunwharf Quays at blue hour, straight verticals, balanced composition, even light, clean lines, rich material detail
+Prompt the orchestrator wrote:
 
-### `monochrome`: Black-and-white photograph
+> architectural photograph of the Spinnaker Tower in Portsmouth, viewed from Gunwharf Quays during the blue hour, with city lights beginning to twinkle and a deep indigo sky, straight verticals, balanced composition, even light, clean lines, rich material detail
 
-**Chosen when:** black and white, monochrome, B&W, mono, film noir.
+### `monochrome`
+
+**Black-and-white photograph.** Chosen when: black and white, monochrome, B&W, mono, film noir.
 
 | Setting | Value |
 |---|---|
@@ -241,15 +269,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "a rainy Portsmouth street at night"
 ```
 
-![](/Users/angus/AIStudio/Output/2026/10/2026-10-27 Rainy Portsmouth Street Night/Image_01.png)
+![monochrome example: a rainy Portsmouth street at night](images/monochrome.jpg)
 
-The orchestrator writes a positive prompt along these lines:
+<sub>`photorealistic` · 30 steps · seed 204735612 · 28 s · Output/2026/10/2026-10-27 Rainy Portsmouth Street Night</sub>
 
-> black and white photograph of a rainy Portsmouth street at night, reflections on wet cobbles, rich tonal range, deep blacks, fine film grain, strong contrast and shape
+Prompt the orchestrator wrote:
 
-### `cinematic`: Film still with movie-style colour and framing
+> black and white photograph of a rainy Portsmouth street at night, wet pavement reflecting streetlights, rich tonal range, deep blacks, fine film grain, strong contrast and shape
 
-**Chosen when:** cinematic, film still, movie scene, dramatic, widescreen.
+### `cinematic`
+
+**Film still with movie-style colour and framing.** Chosen when: cinematic, film still, movie scene, dramatic, widescreen.
 
 | Setting | Value |
 |---|---|
@@ -265,18 +295,22 @@ The orchestrator writes a positive prompt along these lines:
 **Example**
 
 ```zsh
-
+python controller.py "cinematic shot of Spiderman in Guildhall Square"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![cinematic example: cinematic shot of Spiderman in Guildhall Square](images/cinematic.jpg)
 
-> cinematic film still of a lone lighthouse keeper climbing a spiral staircase during a storm, anamorphic widescreen framing, moody colour grade, motivated lighting, shallow depth of field
+<sub>`photorealistic` · 30 steps · seed 946715482 · 20 s · Output/2026/10/2026-10-28 Spiderman in Guildhall Square</sub>
+
+Prompt the orchestrator wrote:
+
+> cinematic film still of Spiderman amidst the historic architecture of Guildhall Square, anamorphic widescreen framing, moody colour grade, motivated lighting, shallow depth of field
 
 ## Graphic types
 
-### `clipart`: Simple flat clip art
+### `clipart`
 
-**Chosen when:** clip art, clipart, cartoon, sticker, simple graphic, or a request naming a small colour palette.
+**Simple flat clip art.** Chosen when: clip art, clipart, cartoon, sticker, simple graphic, or a request naming a small colour palette.
 
 | Setting | Value |
 |---|---|
@@ -296,15 +330,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "yellow frog clip art"
 ```
 
-![](/Users/angus/AIStudio/Output/2026/10/2026-10-27 Yellow Frog Clip Art/Image_01.png)
+![clipart example: yellow frog clip art](images/clipart.jpg)
 
-The orchestrator writes a positive prompt along these lines:
+<sub>`fast_preview` · 30 steps · seed 2941264527 · 62 s · Output/2026/10/2026-10-27 Yellow Frog Clip Art</sub>
 
-> simple flat clip art illustration of a cheerful yellow frog, bold solid colours, clean thick outlines, minimal detail, no shading, no gradients, vector graphic style on a mid-blue background
+Prompt the orchestrator wrote:
 
-### `logo`: Logo mark or emblem
+> simple flat clip art illustration of a yellow frog, bold solid colours, clean thick outlines, minimal detail, no shading, no gradients, vector graphic style, on a mid-blue background
 
-**Chosen when:** logo, emblem, badge, brand mark, monogram.
+### `logo`
+
+**Logo mark or emblem.** Chosen when: logo, emblem, badge, brand mark, monogram.
 
 | Setting | Value |
 |---|---|
@@ -324,13 +360,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "a logo for a Southsea photography studio using a camera and a wave"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![logo example: a logo for a Southsea photography studio using a camera and a wave](images/logo.jpg)
 
-> minimal vector logo of a camera aperture merging into a breaking wave, single bold symbol, geometric shapes, two or three flat colours, strong silhouette, centred, generous margin on a plain white background
+<sub>`fast_preview` · 4 steps · seed 925045642 · 217 s · Output/2026/10/2026-10-28 Southsea Photography Logo</sub>
 
-### `icon`: Single-glyph button or app icon, legible at small sizes
+Prompt the orchestrator wrote:
 
-**Chosen when:** icon, button, Stream Deck key, app icon, symbol, glyph, toolbar.
+> minimal vector logo of a camera and a stylized ocean wave, single bold symbol, geometric shapes, two or three flat colours, strong silhouette, centred, generous margin, on a plain white background
+
+### `icon`
+
+**Single-glyph button or app icon, legible at small sizes.** Chosen when: icon, button, Stream Deck key, app icon, symbol, glyph, toolbar.
 
 | Setting | Value |
 |---|---|
@@ -350,13 +390,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "a Stream Deck icon for starting ComfyUI"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![icon example: a Stream Deck icon for starting ComfyUI](images/icon.jpg)
 
-> flat icon of a play button inside a node-graph symbol, single centred glyph, thick rounded strokes, one or two high-contrast colours, no detail that disappears at small size on a black background
+<sub>`fast_preview` · 4 steps · seed 4103005501 · 8 s · Output/2026/10/2026-10-28 ComfyUI Stream Deck Icon</sub>
 
-### `pixel_art`: Retro 8-bit or 16-bit pixel art
+Prompt the orchestrator wrote:
 
-**Chosen when:** pixel art, 8-bit, 16-bit, retro game, sprite.
+> flat icon of a stylized node-based interface with interconnected nodes and wires, single centred glyph, thick rounded strokes, one or two high-contrast colours, no detail that disappears at small size, on a black background
+
+### `pixel_art`
+
+**Retro 8-bit or 16-bit pixel art.** Chosen when: pixel art, 8-bit, 16-bit, retro game, sprite.
 
 | Setting | Value |
 |---|---|
@@ -375,13 +419,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "a pixel art sprite of a Portsmouth ferry"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![pixel_art example: a pixel art sprite of a Portsmouth ferry](images/pixel_art.jpg)
 
-> pixel art of a Portsmouth to Isle of Wight car ferry, 16-bit retro game style, crisp square pixels, limited palette, no anti-aliasing
+<sub>`highest_quality` · 30 steps · seed 2399470187 · 211 s · Output/2026/10/2026-10-28 Portsmouth Ferry Pixel Sprite</sub>
 
-### `vintage_poster`: Retro travel or advertising poster
+Prompt the orchestrator wrote:
 
-**Chosen when:** poster, travel poster, retro poster, vintage advert, railway poster, art deco.
+> pixel art of a Portsmouth ferry boat, 16-bit retro game style, crisp square pixels, limited palette, no anti-aliasing
+
+### `vintage_poster`
+
+**Retro travel or advertising poster.** Chosen when: poster, travel poster, retro poster, vintage advert, railway poster, art deco.
 
 | Setting | Value |
 |---|---|
@@ -400,15 +448,19 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "a railway poster for Southsea seafront"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![vintage_poster example: a railway poster for Southsea seafront](images/vintage_poster.jpg)
 
-> vintage 1930s travel poster of Southsea seafront with the pier, beach huts and a paddle steamer, flat screen-printed colour blocks, bold simplified shapes, art deco styling, limited warm palette, strong perspective
+<sub>`highest_quality` · 30 steps · seed 3901197949 · 52 s · Output/2026/10/2026-10-28 Southsea Seafront Railway Poster</sub>
+
+Prompt the orchestrator wrote:
+
+> vintage 1930s travel poster of Southsea seafront with its iconic pier and coastal promenade, flat screen-printed colour blocks, bold simplified shapes, art deco styling, limited warm palette, strong perspective
 
 ## Art and illustration types
 
-### `illustration`: General digital illustration
+### `illustration`
 
-**Chosen when:** illustration, drawing, artwork, concept art, when no specific medium is named.
+**General digital illustration.** Chosen when: illustration, drawing, artwork, concept art, when no specific medium is named.
 
 | Setting | Value |
 |---|---|
@@ -427,13 +479,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "an illustration of a fox reading a map in a forest"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![illustration example: an illustration of a fox reading a map in a forest](images/illustration.jpg)
 
-> digital illustration of a fox reading a map in an autumn forest, clean confident linework, painterly shading, harmonious palette, clear focal point
+<sub>`highest_quality` · 30 steps · seed 3719009705 · 26 s · Output/2026/10/2026-10-28 Fox Reading Map In Forest</sub>
 
-### `watercolour`: Loose, translucent watercolour painting
+Prompt the orchestrator wrote:
 
-**Chosen when:** watercolour, watercolor, wash, aquarelle.
+> digital illustration of a fox reading an old paper map in a lush forest, clean confident linework, painterly shading, harmonious palette, clear focal point
+
+### `watercolour`
+
+**Loose, translucent watercolour painting.** Chosen when: watercolour, watercolor, wash, aquarelle.
 
 | Setting | Value |
 |---|---|
@@ -449,16 +505,20 @@ The orchestrator writes a positive prompt along these lines:
 **Example**
 
 ```zsh
-python controller.py "a heron at Langstone Harbour in watercolour"
+python controller.py "a heron at Langstone Harbour"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![watercolour example: a heron at Langstone Harbour](images/watercolour.jpg)
 
-> watercolour painting of a grey heron standing in the shallows at Langstone Harbour, loose wet-on-wet washes, soft bleeding edges, visible cold-press paper texture, white of the paper left as highlights, limited palette
+<sub>`highest_quality` · 30 steps · seed 2338893660 · 233 s · Output/2026/10/2026-10-27 Heron at Langstone Harbour</sub>
 
-### `oil_painting`: Traditional oil painting on canvas
+Prompt the orchestrator wrote:
 
-**Chosen when:** oil painting, oils, impasto, painted on canvas, old master, impressionist.
+> watercolour painting of a grey heron standing in the tidal waters of Langstone Harbour, with salt marshes and coastal reeds in the background, loose wet-on-wet washes, soft bleeding edges, visible cold-press paper texture, white of the paper left as highlights, limited palette
+
+### `oil_painting`
+
+**Traditional oil painting on canvas.** Chosen when: oil painting, oils, impasto, painted on canvas, old master, impressionist.
 
 | Setting | Value |
 |---|---|
@@ -477,13 +537,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "HMS Victory in dry dock as an impressionist oil painting"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![oil_painting example: HMS Victory in dry dock as an impressionist oil painting](images/oil_painting.jpg)
 
-> oil painting of HMS Victory in dry dock, visible impasto brushstrokes, canvas weave, rich layered colour, classical composition, painterly light
+<sub>`highest_quality` · 30 steps · seed 1195589619 · 26 s · Output/2026/10/2026-10-28 HMS Victory Oil Painting</sub>
 
-### `pencil_sketch`: Graphite or charcoal drawing
+Prompt the orchestrator wrote:
 
-**Chosen when:** pencil, sketch, graphite, charcoal, drawn by hand, study.
+> oil painting of the HMS Victory warship in a dry dock, rendered in an impressionist style, visible impasto brushstrokes, canvas weave, rich layered colour, classical composition, painterly light
+
+### `pencil_sketch`
+
+**Graphite or charcoal drawing.** Chosen when: pencil, sketch, graphite, charcoal, drawn by hand, study.
 
 | Setting | Value |
 |---|---|
@@ -502,13 +566,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "a pencil sketch of an old Leica camera"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![pencil_sketch example: a pencil sketch of an old Leica camera](images/pencil_sketch.jpg)
 
-> graphite pencil sketch of an old Leica rangefinder camera, expressive hatching and cross-hatching, varied line weight, smudged shading, off-white sketchbook paper
+<sub>`highest_quality` · 30 steps · seed 317361572 · 50 s · Output/2026/10/2026-10-28 Vintage Leica Pencil Sketch</sub>
 
-### `line_art`: Clean black ink outlines, colouring-book style
+Prompt the orchestrator wrote:
 
-**Chosen when:** line art, line drawing, ink drawing, outline, colouring page, tattoo flash.
+> graphite pencil sketch of an old, vintage Leica camera with intricate mechanical details, expressive hatching and cross-hatching, varied line weight, smudged shading, off-white sketchbook paper
+
+### `line_art`
+
+**Clean black ink outlines, colouring-book style.** Chosen when: line art, line drawing, ink drawing, outline, colouring page, tattoo flash.
 
 | Setting | Value |
 |---|---|
@@ -527,13 +595,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "a colouring page of a seahorse"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![line_art example: a colouring page of a seahorse](images/line_art.jpg)
 
-> clean black ink line art of a seahorse among seaweed, uniform confident outlines, no shading, no fill, pure white background, colouring-book style
+<sub>`highest_quality` · 30 steps · seed 3891905958 · 38 s · Output/2026/10/2026-10-28 Seahorse Colouring Page</sub>
 
-### `storybook`: Warm children's picture-book illustration
+Prompt the orchestrator wrote:
 
-**Chosen when:** children's book, picture book, storybook, bedtime story, whimsical, cute scene.
+> clean black ink line art of a cute seahorse, uniform confident outlines, no shading, no fill, pure white background, colouring-book style
+
+### `storybook`
+
+**Warm children's picture-book illustration.** Chosen when: children's book, picture book, storybook, bedtime story, whimsical, cute scene.
 
 | Setting | Value |
 |---|---|
@@ -552,13 +624,17 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "a hedgehog sailing a teacup across a pond"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![storybook example: a hedgehog sailing a teacup across a pond](images/storybook.jpg)
 
-> children's picture-book illustration of a hedgehog sailing a teacup across a pond, soft gouache textures, warm gentle palette, rounded friendly shapes, whimsical storytelling composition
+<sub>`highest_quality` · 30 steps · seed 2680893108 · 26 s · Output/2026/10/2026-10-28 Hedgehog Teacup Voyage</sub>
 
-### `3d_render`: Polished 3D render or isometric scene
+Prompt the orchestrator wrote:
 
-**Chosen when:** 3D, render, CGI, isometric, claymation, toy-like, diorama.
+> children's picture-book illustration of a tiny hedgehog sailing inside a delicate porcelain teacup across a calm pond with lily pads, soft gouache textures, warm gentle palette, rounded friendly shapes, whimsical storytelling composition
+
+### `3d_render`
+
+**Polished 3D render or isometric scene.** Chosen when: 3D, render, CGI, isometric, claymation, toy-like, diorama.
 
 | Setting | Value |
 |---|---|
@@ -577,9 +653,13 @@ The orchestrator writes a positive prompt along these lines:
 python controller.py "an isometric diorama of a tiny photography studio"
 ```
 
-The orchestrator writes a positive prompt along these lines:
+![3d_render example: an isometric diorama of a tiny photography studio](images/3d_render.jpg)
 
-> 3D render of a tiny photography studio with lights and a backdrop, soft studio lighting, smooth matte materials, gentle ambient occlusion, isometric or three-quarter view, clean minimal scene
+<sub>`highest_quality` · 30 steps · seed 699100232 · 38 s · Output/2026/10/2026-10-28 Tiny Photography Studio Diorama</sub>
+
+Prompt the orchestrator wrote:
+
+> 3D render of a tiny photography studio diorama, featuring miniature cameras, small softboxes, a tiny tripod, and a miniature backdrop stand, soft studio lighting, smooth matte materials, gentle ambient occlusion, isometric or three-quarter view, clean minimal scene
 
 ## Adding or changing a type
 
@@ -597,7 +677,8 @@ Add an entry under `styles.types` in `config.yaml`. Every field below is require
 | `model` | Default model capability, a key of `models.map` |
 | `cfg` | FLUX guidance used for every run of this type |
 | `background` | Optional. The prompt must end "on a <colour> background" |
-| `example` | A typical request, shown by `--list-styles` |
+| `example` | A typical request, shown by `--list-styles` and used to find or make the example image |
+| `example_image` | Optional. Pin this document's example to a run folder, relative to `Output/`, e.g. `2026/10/2026-10-28 Southsea Seafront Railway Poster` |
 
 Test a new type with a dry run, which shows the orchestrator's spec without generating:
 
@@ -607,8 +688,9 @@ python controller.py "your test request" --style newtype --dry-run
 
 ## Keeping this document current
 
-Regenerate it after editing the catalogue:
-
 ```zsh
-python tools/gen_image_types_doc.py
+python tools/gen_image_types_doc.py                     # rebuild
+python tools/gen_image_types_doc.py --generate-missing  # make missing examples first
 ```
+
+Without a pin, each type shows the latest run of its `example` request, or else the latest run that used the type. To show a particular image, set `example_image`. Example images are copied to `documentation/images/` at up to 1024 px, so commit that folder along with the document.

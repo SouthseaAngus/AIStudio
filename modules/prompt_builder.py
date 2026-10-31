@@ -55,6 +55,7 @@ def build_system_prompt(cfg: dict) -> str:
     workflow_names = ", ".join(sorted(cfg["workflows"]["map"].keys()))
     model_caps = ", ".join(sorted(cfg["models"]["map"].keys()))
     default = cfg["styles"]["default"]
+    text_max = cfg["styles"]["text"]["max_length"]
     families = "\n".join(f"- {k}: {v}" for k, v in FAMILY_RULES.items())
     return f"""You are the orchestrator for a local image-generation studio.
 Given the user's request, respond with ONLY a JSON object, no prose, with exactly these keys:
@@ -66,6 +67,7 @@ Given the user's request, respond with ONLY a JSON object, no prose, with exactl
   "model": "one of: {model_caps}",
   "positive": "the image generation prompt, following the chosen style's pattern",
   "negative": "extra things to avoid for this particular request (may be empty)",
+  "text": "the exact words to appear in the image, or an empty string",
   "steps": 30,
   "width": 1024,
   "height": 1024
@@ -91,6 +93,17 @@ Writing the positive prompt:
 - Start from the chosen style's pattern, replace X with a vivid description of
   the user's subject, and keep every style keyword. The negative prompt is
   ignored by some workflows, so the positive prompt must fully specify the style.
+
+Text in the image:
+- Put words in "text" only when they belong in the picture: the user quotes
+  words, asks for a title, caption, slogan, name or sign, or the type
+  traditionally carries words (a poster's place name, a logo's brand name).
+  Otherwise "text" is "".
+- Copy the user's spelling and capitalisation exactly. Keep it short, at most
+  {text_max} characters; posters usually use the place name in capitals.
+- Also write the words into the positive prompt in double quotes and say how
+  they look and where they sit, e.g. 'the title "SOUTHSEA" in large bold art
+  deco capitals across the top'. Never put any other words in quotes.
 
 Other fields:
 - workflow: use the style's default unless the user asks for a different shape
@@ -170,6 +183,8 @@ def validate_and_clamp(spec: dict, cfg: dict, logger) -> dict:
     extra = spec["negative"].strip()
     spec["negative"] = f"{st['avoid']}, {extra}" if extra else st["avoid"]
 
+    spec = _apply_text(spec, cfg, logger)
+
     spec["steps"] = min(max(spec["steps"], g["min_steps"]), g["max_steps"])
     spec["width"] = _snap(spec["width"], g["dimension_multiple"], g["max_dimension"])
     spec["height"] = _snap(spec["height"], g["dimension_multiple"], g["max_dimension"])
@@ -178,6 +193,39 @@ def validate_and_clamp(spec: dict, cfg: dict, logger) -> dict:
     safe = "".join(c for c in spec["title"] if c.isalnum() or c in " -_").strip()
     spec["title"] = safe or "Untitled"
 
+    return spec
+
+
+TEXT_WORDS = ("small text", "text", "lettering", "letters", "words", "typography",
+              "watermark", "signature", "caption", "logo text")
+
+
+def _apply_text(spec: dict, cfg: dict, logger) -> dict:
+    """Make requested words legible: quote them, use a model that can spell,
+    raise guidance, and stop the negative prompt fighting them."""
+    t = cfg["styles"]["text"]
+    text = spec.get("text", "")
+    text = text.strip().strip('"\'').strip() if isinstance(text, str) else ""
+    if len(text) > t["max_length"]:
+        logger.log(f"WARN: text is {len(text)} characters; beyond {t['max_length']} "
+                   f"FLUX often misspells it. Shorter wording renders better.")
+    spec["text"] = text
+    if not text:
+        return spec
+
+    if f'"{text}"' not in spec["positive"]:
+        spec["positive"] = (
+            spec["positive"].rstrip(" ,.")
+            + f', with the words "{text}" in large, clear, bold lettering, spelled exactly'
+        )
+    if spec["model"] != t["model"]:
+        logger.log(f"Text requested: model {spec['model']} -> {t['model']} (better spelling)")
+        spec["model"] = t["model"]
+    spec["cfg"] = max(spec["cfg"], float(t["guidance"]))
+    kept = [w.strip() for w in spec["negative"].split(",")
+            if w.strip() and w.strip().lower() not in TEXT_WORDS]
+    spec["negative"] = ", ".join(kept)
+    logger.log(f'Text to render: "{text}"')
     return spec
 
 

@@ -46,7 +46,7 @@ OUTPUT_ROOT = Path("~/AIStudio/Output").expanduser()
 
 FLUX1_CKPT = "flux1-dev-fp8.safetensors"
 CONTROLNET = "flux1-dev-controlnet-union-pro-2.safetensors"
-FLUX2_UNET = "flux2_dev_fp8mixed.safetensors"
+FLUX2_UNET = "flux2-dev-Q6_K.gguf"  # GGUF: Apple GPUs have no fp8 support
 FLUX2_TE = "mistral_3_small_flux2_bf16.safetensors"
 FLUX2_VAE = "flux2-vae.safetensors"
 
@@ -135,9 +135,11 @@ def graph_controlnet(images, prompt, seed, steps, guidance, megapixels, strength
     return g
 
 
-def graph_flux2(images, prompt, seed, steps, guidance, megapixels, width, height, prefix, **_):
+def graph_flux2(images, prompt, seed, steps, guidance, megapixels, width, height, prefix, unet=FLUX2_UNET, **_):
     g = {
-        "1": {"class_type": "UNETLoader", "inputs": {"unet_name": FLUX2_UNET, "weight_dtype": "default"}},
+        "1": ({"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": unet}}
+              if unet.endswith(".gguf") else
+              {"class_type": "UNETLoader", "inputs": {"unet_name": unet, "weight_dtype": "default"}}),
         "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": FLUX2_TE, "type": "flux2"}},
         "3": {"class_type": "VAELoader", "inputs": {"vae_name": FLUX2_VAE}},
         "4": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["2", 0]}},
@@ -208,6 +210,8 @@ def preflight(graph, info):
     for nid, node in graph.items():
         cls = node["class_type"]
         if cls not in info:
+            if cls == "UnetLoaderGGUF":
+                fail("the ComfyUI-GGUF custom node isn't installed, or ComfyUI wasn't restarted after installing it.")
             fail(f"this ComfyUI has no '{cls}' node. Update ComfyUI (git pull) and retry.")
         spec = info[cls]["input"]
         required = spec.get("required", {})
@@ -221,8 +225,8 @@ def preflight(graph, info):
             opts = _combo_options(s)
             val = node["inputs"][name]
             if opts is not None and isinstance(val, str) and val not in opts:
-                if val in MODEL_HOMES:
-                    fail(f"model '{val}' not found. Put it in {MODEL_HOMES[val]} "
+                if val in MODEL_HOMES or name == "unet_name":
+                    fail(f"model '{val}' not found. Put it in {MODEL_HOMES.get(val, 'ComfyUI/models/diffusion_models/')} "
                          f"and restart ComfyUI.")
                 if cls != "LoadImage":
                     fail(f"{cls}.{name} = '{val}' is not an option here: {opts[:8]}")
@@ -292,6 +296,7 @@ def main():
                    help="controlnet: below 1.0 also starts from the photo (0.85-0.95 keeps the scene)")
     p.add_argument("--canny", type=float, nargs=2, default=[0.4, 0.8], metavar=("LOW", "HIGH"))
     p.add_argument("--size", default="1536x1024", help="flux2 output size, WxH")
+    p.add_argument("--unet", default=FLUX2_UNET, help="flux2 model file in models/diffusion_models (.gguf or .safetensors)")
     p.add_argument("--print-graph", action="store_true", help="print the graph and exit")
     a = p.parse_args()
 
@@ -319,7 +324,7 @@ def main():
 
     base = dict(prompt=a.prompt, seed=seed, steps=steps, guidance=guidance,
                 megapixels=a.megapixels, end=a.end, canny_low=a.canny[0],
-                canny_high=a.canny[1], width=width, height=height)
+                canny_high=a.canny[1], width=width, height=height, unet=a.unet)
 
     if a.print_graph:
         names = [i.name for i in a.image]
