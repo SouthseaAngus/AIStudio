@@ -11,6 +11,7 @@
     --ok: #5fb37a; --bad: #e0675a; --radius: 10px;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; background: var(--bg); color: var(--text);
     font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
   header { display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--line); }
@@ -80,6 +81,22 @@
   .card small { color: var(--muted); }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--bad); color: #fff;
     padding: 10px 16px; border-radius: 8px; display: none; max-width: 80vw; }
+  .toast.ok { background: var(--ok); color: #0c1a10; }
+  .left { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .bhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .bhead label.f { margin: 0; }
+  .bhead span { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bitem { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 7px;
+    border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; background: var(--panel-2); }
+  .bitem.run { border-color: var(--accent); }
+  .bitem .th { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; background: #0e0f11; display: block; }
+  .bitem div { min-width: 0; }
+  .bitem b { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bitem small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bitem .x { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); background: transparent;
+    color: var(--muted); cursor: pointer; padding: 0; font-size: 14px; line-height: 22px; }
+  .bitem .x:hover { color: var(--text); border-color: var(--muted); }
+  .bitem .tag { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; }
 </style>
 </head>
 <body>
@@ -90,6 +107,7 @@
 </header>
 
 <main>
+  <div class="left">
   <section class="panel">
     <div class="field">
       <label class="f" for="label">Label</label>
@@ -130,9 +148,21 @@
 
     <div class="actions">
       <button class="primary" id="go">Generate</button>
+      <button class="ghost" id="add" title="Queue this job to run later with Start batch">Add to batch</button>
       <button class="ghost" id="cancel" hidden>Cancel</button>
     </div>
   </section>
+
+  <section class="panel" id="batch">
+    <div class="bhead"><label class="f">Batch</label><span id="bCount">0 / 10</span></div>
+    <div id="bList"></div>
+    <p class="meta" id="bHint" style="margin:0 0 12px">Set up a job above and click <b>Add to batch</b> to queue it without running it.
+      Queue up to 10 jobs, each making up to 4 images from up to 16 references, then start them together.</p>
+    <div class="actions">
+      <button class="primary" id="bStart" disabled>Start batch</button>
+    </div>
+  </section>
+  </div>
 
   <section>
     <div class="panel status" id="status">
@@ -167,9 +197,10 @@ let MAX_REFS = 16, DOC_REFS = 10, BUDGET = 4.0;
 let refs = [];                  // {name, data}
 let shape = "landscape";
 let jobId = null, pollTimer = null, lastPerImage = null;
+let busy = false, batch = null, batchKey = "", watchingBatch = false;
 let history = [], view = null;  // view: {run, i}
 
-function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block";
+function toast(msg, ok) { const t = $("toast"); t.textContent = msg; t.className = "toast" + (ok ? " ok" : ""); t.style.display = "block";
   clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 6000); }
 function fmt(s) { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60); return m ? `${m}m ${String(s % 60).padStart(2, "0")}s` : `${s}s`; }
 function store(k, v) { try { localStorage.setItem("refstudio." + k, v); } catch (e) {} }
@@ -248,27 +279,86 @@ function setShape(v) { shape = v; [...$("shape").children].forEach(b => b.classL
 ["label", "prompt"].forEach(k => { const v = recall(k); if (v) $(k).value = v; $(k).oninput = () => store(k, $(k).value); });
 if (recall("shape")) setShape(recall("shape"));
 
-$("go").onclick = async () => {
+function formJob() {
   const prompt = $("prompt").value.trim();
-  if (!prompt) { toast("Write a prompt first."); $("prompt").focus(); return; }
-  if (!refs.length && !confirm("No reference images: generate from the prompt alone?")) return;
+  if (!prompt) { toast("Write a prompt first."); $("prompt").focus(); return null; }
+  if (!refs.length && !confirm("No reference images: generate from the prompt alone?")) return null;
+  return { label: $("label").value, prompt, refs, shape, steps: $("steps").value,
+    guidance: $("guidance").value, count: $("count").value, seed: $("seed").value, unload_ollama: $("unload").checked };
+}
+
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+$("go").onclick = async () => {
+  const body = formJob(); if (!body) return;
   setBusy(true); showStatus({ state: "queued", message: "Sending references", created: Date.now() / 1000, now: Date.now() / 1000 });
+  try { jobId = (await post("/api/generate", body)).id; poll(); }
+  catch (e) { setBusy(false); showStatus({ state: "error", message: e.message }); }
+};
+$("add").onclick = async () => {
+  const body = formJob(); if (!body) return;
+  $("add").disabled = true;
   try {
-    const r = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: $("label").value, prompt, refs, shape, steps: $("steps").value,
-        guidance: $("guidance").value, count: $("count").value, seed: $("seed").value, unload_ollama: $("unload").checked }) });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.error || r.statusText);
-    jobId = j.id; poll();
-  } catch (e) { setBusy(false); showStatus({ state: "error", message: e.message }); }
+    const j = await post("/api/batch/add", body);
+    renderBatch(j.batch);
+    toast(`Added "${$("label").value.trim() || "Reference Run"}" to the batch (${j.batch.items.length} / ${j.batch.max_jobs})`, true);
+  } catch (e) { toast(e.message); }
+  finally { renderBatch(batch, true); }
+};
+$("bStart").onclick = async () => {
+  setBusy(true); watchingBatch = true;
+  showStatus({ state: "queued", message: "Starting batch", created: Date.now() / 1000, now: Date.now() / 1000 });
+  try { renderBatch((await post("/api/batch/start")).batch); poll(); }
+  catch (e) { setBusy(false); watchingBatch = false; showStatus({ state: "error", message: e.message }); }
 };
 $("cancel").onclick = () => fetch("/api/cancel", { method: "POST", body: "{}" });
 
-function setBusy(b) { $("go").disabled = b; $("go").textContent = b ? "Generating…" : "Generate"; $("cancel").hidden = !b; }
+function setBusy(b) {
+  busy = b;
+  $("go").disabled = b; $("go").textContent = b ? "Generating…" : "Generate"; $("cancel").hidden = !b;
+  renderBatch(batch, true);
+}
+
+// ------------------------------------------------------------ batch
+function renderBatch(b, force) {
+  if (!b) return;
+  batch = b;
+  const n = b.items.length;
+  $("bCount").textContent = `${n} / ${b.max_jobs}`;
+  $("bStart").disabled = busy || !n;
+  $("cancel").textContent = b.running ? "Stop batch" : "Cancel";
+  $("bStart").textContent = b.running ? `Running job ${Math.min(b.done + 1, b.total)} of ${b.total}` : `Start batch${n ? ` (${n} job${n === 1 ? "" : "s"})` : ""}`;
+  $("add").disabled = n >= b.max_jobs;
+  $("add").title = n >= b.max_jobs ? "The batch is full" : "Queue this job to run later with Start batch";
+  $("bHint").hidden = n > 0;
+  const key = JSON.stringify(b.items);
+  if (key === batchKey && !force) return;
+  batchKey = key;
+  const list = $("bList"); list.innerHTML = "";
+  b.items.forEach(it => {
+    const d = document.createElement("div"); d.className = "bitem" + (it.job ? " run" : "");
+    d.innerHTML = (it.thumb ? `<img class="th" alt="">` : `<span class="th"></span>`) + `<div><b></b><small></small><small></small></div>`
+      + (it.job ? `<span class="tag">Running</span>` : `<button class="x" title="Remove from batch">×</button>`);
+    if (it.thumb) d.querySelector(".th").src = it.thumb;
+    d.querySelector("b").textContent = it.label;
+    const sm = d.querySelectorAll("small");
+    sm[0].textContent = `${it.refs} ref${it.refs === 1 ? "" : "s"} · ${it.count} image${it.count === 1 ? "" : "s"} · ${it.shape} · ${it.steps} steps`;
+    sm[1].textContent = it.prompt; sm[1].title = it.prompt;
+    const x = d.querySelector(".x");
+    if (x) x.onclick = async () => { try { renderBatch((await post("/api/batch/remove", { id: it.id })).batch); } catch (e) { toast(e.message); } };
+    list.appendChild(d);
+  });
+}
 
 // ------------------------------------------------------------ status
 function showStatus(j) {
-  $("stMsg").textContent = j.message || j.state;
+  const prefix = batch?.running && j.batch_item ? `Job ${Math.min(batch.done + 1, batch.total)} of ${batch.total}: ` : "";
+  $("stMsg").textContent = prefix + (j.message || j.state);
   $("stMsg").style.color = j.state === "error" ? "var(--bad)" : j.state === "done" ? "var(--ok)" : "";
   const end = j.finished || j.now;
   $("stTime").textContent = j.created && end ? fmt(end - j.created) : "";
@@ -285,20 +375,40 @@ function showStatus(j) {
   $("stLog").textContent = (j.log || []).join("\n");
 }
 
+// One loop follows the server: every 1.5 s while something runs, every 10 s otherwise.
+// During a batch the current job changes underneath us, so this reads /api/status
+// rather than a single job.
 async function poll() {
   clearTimeout(pollTimer);
-  if (!jobId) return;
-  try {
-    const j = await (await fetch(`/api/jobs/${jobId}`)).json();
-    showStatus(j);
-    if (j.images?.length) showRun({ folder: j.folder, label: j.label, images: j.images, prompt: $("prompt").value, seed: j.seed }, j.images.length - 1, true);
-    if (["done", "error", "cancelled"].includes(j.state)) {
-      setBusy(false); jobId = null; await loadHistory();
-      if (j.state === "done" && history[0] && history[0].folder === j.folder) showRun(history[0], 0);
-      return;
+  try { await applyStatus(await (await fetch("/api/status")).json()); }
+  catch (e) { $("comfyDot").className = "dot bad"; $("comfyText").textContent = "RefStudio server not responding"; }
+  pollTimer = setTimeout(poll, busy ? 1500 : 10000);
+}
+
+async function applyStatus(s) {
+  MAX_REFS = s.max_refs; DOC_REFS = s.documented_refs; BUDGET = s.ref_budget_mp;
+  $("comfyDot").className = "dot " + (s.comfy ? "ok" : "bad");
+  $("comfyText").textContent = s.comfy ? "ComfyUI running" : "ComfyUI stopped (starts when you generate)";
+  $("modelText").textContent = s.model;
+  renderBatch(s.batch);
+  const j = s.job, was = busy;
+  if (s.busy !== busy) setBusy(s.busy);
+  if (s.batch.running) watchingBatch = true;
+  if (!j || !(s.busy || was)) return;
+  if (j.id !== jobId) { if (jobId) await loadHistory(); jobId = j.id; }   // a batch moved on to its next job
+  showStatus(j);
+  if (j.images?.length) showRun({ folder: j.folder, label: j.label, images: j.images, prompt: j.prompt, seed: j.seed }, j.images.length - 1, true);
+  if (was && !s.busy) {
+    jobId = null; await loadHistory();
+    if (j.state === "done" && history[0] && history[0].folder === j.folder) showRun(history[0], 0);
+    if (watchingBatch) {
+      const b = s.batch, failed = b.failed ? `, ${b.failed} failed` : "";
+      $("stMsg").textContent = `Batch ${b.stopping ? "stopped" : "finished"}: ${b.done} of ${b.total} job${b.total === 1 ? "" : "s"} run${failed}`
+        + (b.items.length ? ` · ${b.items.length} still queued` : "");
+      $("stMsg").style.color = b.failed ? "var(--bad)" : b.stopping ? "" : "var(--ok)";
+      watchingBatch = false;
     }
-  } catch (e) { /* server restarting: keep trying */ }
-  pollTimer = setTimeout(poll, 1500);
+  }
 }
 
 // ------------------------------------------------------------ viewer
@@ -355,20 +465,8 @@ async function loadHistory() {
   });
 }
 
-async function refreshStatus(first) {
-  try {
-    const s = await (await fetch("/api/status")).json();
-    MAX_REFS = s.max_refs; DOC_REFS = s.documented_refs; BUDGET = s.ref_budget_mp;
-    $("comfyDot").className = "dot " + (s.comfy ? "ok" : "bad");
-    $("comfyText").textContent = s.comfy ? "ComfyUI running" : "ComfyUI stopped (starts when you generate)";
-    $("modelText").textContent = s.model;
-    if (first) { renderRefs(); if (s.busy && s.job) { jobId = s.job.id; setBusy(true); poll(); } }
-  } catch (e) { $("comfyDot").className = "dot bad"; $("comfyText").textContent = "RefStudio server not responding"; }
-}
-
 renderRefs();
-refreshStatus(true); loadHistory();
-setInterval(refreshStatus, 10000);
+poll().then(renderRefs); loadHistory();
 </script>
 </body>
 </html>

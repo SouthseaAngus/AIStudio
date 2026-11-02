@@ -13,6 +13,10 @@ label and a prompt, and generate. Each run is saved like any AIStudio run:
         Metadata.json           prompt, settings, seeds and timings
         Prompt.json, Workflow.json, Generation.log
 
+Batch mode: "Add to batch" queues up to 10 jobs (each up to 4 images from up to
+16 references) without running them; "Start batch" runs them one after another.
+Queued jobs wait in Output/.refstudio-queue/ and survive a restart.
+
 Only this computer can reach the page (it listens on 127.0.0.1).
 """
 
@@ -47,6 +51,9 @@ MAX_REFS = 16
 DOCUMENTED_REFS = 10        # FLUX.2's published limit; more still runs, with less certainty
 REF_BUDGET_MP = 4.0         # total reference pixels: 1-4 refs at 1 MP each, 16 at 0.25 MP
 MAX_BODY = 400 * 1024 * 1024
+MAX_BATCH = 10              # jobs waiting in the batch queue
+MAX_BATCH_IMAGES = 4        # images per batch job
+QUEUE_ROOT = OUTPUT_ROOT / ".refstudio-queue"
 
 FLUX2_UNET = os.environ.get("REFSTUDIO_UNET", "flux2-dev-Q6_K.gguf")
 FLUX2_TE = "mistral_3_small_flux2_bf16.safetensors"
@@ -62,6 +69,8 @@ SHAPES = {
 JOB_LOCK = threading.Lock()
 JOBS = {}            # id -> job dict
 CURRENT = {"id": None}
+LAST = {"id": None}  # most recent job, so the page can see how it ended
+BATCH = {"items": [], "running": False, "stop": False, "total": 0, "done": 0, "failed": 0}
 
 
 # ---------------------------------------------------------------- helpers
@@ -328,6 +337,11 @@ def run_job(job, req):
     except Exception as e:  # unexpected: report rather than kill the server
         job_update(job, state="error", message=f"Unexpected error: {e}", finished=time.time())
         job_log(job, f"ERROR: unexpected {e!r}")
+
+
+def run_single(job, req):
+    try:
+        run_job(job, req)
     finally:
         with JOB_LOCK:
             CURRENT["id"] = None
@@ -387,7 +401,8 @@ def write_metadata(run_dir, req, per_image, n_refs, started, finished, status, e
         "cfg": req["guidance"], "width": w, "height": h}, indent=2))
 
 
-def start_job(body):
+def parse_request(body, max_count=8):
+    """Validate a generate/batch request: returns (req, [(filename, bytes)])."""
     label = safe_name(body.get("label"), "Reference Run")
     prompt = str(body.get("prompt") or "").strip()
     refs = body.get("refs") or []
@@ -399,41 +414,165 @@ def start_job(body):
     try:
         steps = min(max(int(body.get("steps") or 28), 4), 60)
         guidance = min(max(float(body.get("guidance") or 4.0), 1.0), 10.0)
-        count = min(max(int(body.get("count") or 1), 1), 8)
+        count = min(max(int(body.get("count") or 1), 1), max_count)
         seed = int(body["seed"]) if str(body.get("seed", "")).strip() else random.randint(0, 2**32 - 1)
     except (TypeError, ValueError):
         raise ValueError("Steps, guidance, count and seed must be numbers.")
     req = {"label": label, "prompt": prompt, "shape": shape, "steps": steps, "guidance": guidance,
            "count": count, "seed": seed % (2**32), "unload_ollama": bool(body.get("unload_ollama", True))}
+    files = []
+    for i, ref in enumerate(refs, 1):
+        data = str(ref.get("data", ""))
+        if "," in data:
+            data = data.split(",", 1)[1]
+        try:
+            raw = base64.b64decode(data, validate=True)
+        except ValueError:
+            raise ValueError(f"Reference {i} isn't a readable image.")
+        stem = re.sub(r"^\d+\s+", "", Path(str(ref.get("name") or f"ref{i}")).stem)
+        files.append((f"{i:02d} {safe_name(stem, f'ref{i}', 40)}.jpg", raw))
+    return req, files
 
-    with JOB_LOCK:
-        if CURRENT["id"]:
-            raise RuntimeError("A generation is already running.")
-        run_dir = make_run_dir(label)
-        for i, ref in enumerate(refs, 1):
-            data = str(ref.get("data", ""))
-            if "," in data:
-                data = data.split(",", 1)[1]
-            try:
-                raw = base64.b64decode(data, validate=True)
-            except ValueError:
-                raise ValueError(f"Reference {i} isn't a readable image.")
-            stem = re.sub(r"^\d+\s+", "", Path(str(ref.get("name") or f"ref{i}")).stem)
-            stem = safe_name(stem, f"ref{i}", 40)
-            (run_dir / "references" / f"{i:02d} {stem}.jpg").write_bytes(raw)
-        job = {"id": uuid.uuid4().hex[:10], "state": "queued", "message": "Queued", "index": 0,
-               "count": count, "images": [], "log": [], "created": time.time(),
-               "run_dir": str(run_dir), "folder": run_dir.relative_to(OUTPUT_ROOT).as_posix(),
-               "label": label, "seed": req["seed"]}
-        JOBS[job["id"]] = job
-        CURRENT["id"] = job["id"]
-    threading.Thread(target=run_job, args=(job, req), daemon=True).start()
+
+def new_job(req, run_dir):
+    """Register a job for run_dir as the current one. Call with JOB_LOCK held."""
+    job = {"id": uuid.uuid4().hex[:10], "state": "queued", "message": "Queued", "index": 0,
+           "count": req["count"], "images": [], "log": [], "created": time.time(),
+           "run_dir": str(run_dir), "folder": run_dir.relative_to(OUTPUT_ROOT).as_posix(),
+           "label": req["label"], "prompt": req["prompt"], "seed": req["seed"]}
+    JOBS[job["id"]] = job
+    CURRENT["id"] = LAST["id"] = job["id"]
     return job
+
+
+def start_job(body):
+    req, files = parse_request(body)
+    with JOB_LOCK:
+        if CURRENT["id"] or BATCH["running"]:
+            raise RuntimeError("A generation is already running.")
+        run_dir = make_run_dir(req["label"])
+        for name, raw in files:
+            (run_dir / "references" / name).write_bytes(raw)
+        job = new_job(req, run_dir)
+    threading.Thread(target=run_single, args=(job, req), daemon=True).start()
+    return job
+
+
+# ---------------------------------------------------------------- batch
+
+def save_queue():
+    """Persist the queue (call with JOB_LOCK held) so queued jobs survive a restart."""
+    QUEUE_ROOT.mkdir(parents=True, exist_ok=True)
+    tmp = QUEUE_ROOT / "queue.json.tmp"
+    tmp.write_text(json.dumps([{k: it[k] for k in ("id", "req", "added")} for it in BATCH["items"]], indent=2))
+    tmp.replace(QUEUE_ROOT / "queue.json")
+
+
+def load_queue():
+    try:
+        items = json.loads((QUEUE_ROOT / "queue.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        return
+    BATCH["items"] = [it for it in items if (QUEUE_ROOT / it["id"]).is_dir()][:MAX_BATCH]
+
+
+def batch_add(body):
+    req, files = parse_request(body, MAX_BATCH_IMAGES)
+    with JOB_LOCK:
+        if len(BATCH["items"]) >= MAX_BATCH:
+            raise RuntimeError(f"The batch is full ({MAX_BATCH} jobs). Start it or remove a job first.")
+        item = {"id": uuid.uuid4().hex[:10], "req": req, "added": time.time()}
+        refs = QUEUE_ROOT / item["id"] / "references"
+        refs.mkdir(parents=True)
+        for name, raw in files:
+            (refs / name).write_bytes(raw)
+        BATCH["items"].append(item)
+        save_queue()
+    return item
+
+
+def batch_remove(item_id):
+    """Drop a waiting job (not the one running). Returns False if there's no such job."""
+    with JOB_LOCK:
+        item = next((it for it in BATCH["items"] if it["id"] == item_id), None)
+        if not item or item.get("job"):
+            return False
+        BATCH["items"].remove(item)
+        save_queue()
+    shutil.rmtree(QUEUE_ROOT / item_id, ignore_errors=True)
+    return True
+
+
+def batch_start():
+    with JOB_LOCK:
+        if CURRENT["id"] or BATCH["running"]:
+            raise RuntimeError("A generation is already running.")
+        if not BATCH["items"]:
+            raise ValueError("The batch is empty: add some jobs first.")
+        ids = [it["id"] for it in BATCH["items"]]
+        BATCH.update(running=True, stop=False, total=len(ids), done=0, failed=0)
+    threading.Thread(target=run_batch, args=(ids,), daemon=True).start()
+
+
+def run_batch(ids):
+    """Run the jobs that were queued when Start was pressed, in order. Jobs added
+    meanwhile wait for the next start. One failure doesn't stop the rest; Cancel
+    stops the batch and leaves the cancelled job and the rest queued."""
+    print(f"{now()}  Batch started: {len(ids)} job(s)", flush=True)
+    try:
+        for item_id in ids:
+            with JOB_LOCK:
+                if BATCH["stop"]:
+                    break
+                item = next((it for it in BATCH["items"] if it["id"] == item_id), None)
+                if not item:            # removed before its turn
+                    BATCH["total"] -= 1
+                    continue
+                req = item["req"]
+                run_dir = make_run_dir(req["label"])
+                staged = QUEUE_ROOT / item_id / "references"
+                for p in sorted(staged.iterdir()) if staged.is_dir() else []:
+                    shutil.copy2(p, run_dir / "references" / p.name)
+                job = new_job(req, run_dir)
+                job["batch_item"] = item_id
+                item["job"] = job["id"]
+            run_job(job, req)
+            with JOB_LOCK:
+                CURRENT["id"] = None
+                if job["state"] == "cancelled":     # keep it queued to run next time
+                    item.pop("job", None)
+                    break
+                BATCH["items"] = [it for it in BATCH["items"] if it["id"] != item_id]
+                BATCH["done"] += 1
+                BATCH["failed"] += job["state"] == "error"
+                save_queue()
+            shutil.rmtree(QUEUE_ROOT / item_id, ignore_errors=True)
+    finally:
+        with JOB_LOCK:
+            CURRENT["id"] = None
+            BATCH["running"] = False
+            print(f"{now()}  Batch {'stopped' if BATCH['stop'] else 'finished'}: "
+                  f"{BATCH['done']} of {BATCH['total']} job(s) run", flush=True)
+
+
+def public_batch():
+    items = []
+    for it in BATCH["items"]:
+        r = it["req"]
+        refs = QUEUE_ROOT / it["id"] / "references"
+        names = sorted(p.name for p in refs.iterdir()) if refs.is_dir() else []
+        items.append({"id": it["id"], "label": r["label"], "prompt": r["prompt"], "shape": r["shape"],
+                      "count": r["count"], "steps": r["steps"], "refs": len(names),
+                      "thumb": f"/queue/{it['id']}/references/{quote(names[0])}" if names else None,
+                      "job": it.get("job")})
+    return {"items": items, "running": BATCH["running"], "stopping": BATCH["stop"],
+            "total": BATCH["total"], "done": BATCH["done"], "failed": BATCH["failed"],
+            "max_jobs": MAX_BATCH, "max_images": MAX_BATCH_IMAGES}
 
 
 def public_job(job):
     keys = ("id", "state", "message", "index", "count", "images", "created", "finished",
-            "image_started", "folder", "label", "seed")
+            "image_started", "folder", "label", "prompt", "seed", "batch_item")
     j = {k: job.get(k) for k in keys}
     j["log"] = job.get("log", [])[-6:]
     j["now"] = time.time()
@@ -493,8 +632,10 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             return self._send(200, (HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
         if path == "/api/status":
-            j = JOBS.get(CURRENT["id"]) if CURRENT["id"] else None
-            return self._send(200, {"comfy": comfy_up(), "busy": bool(j), "job": public_job(j) if j else None,
+            j = JOBS.get(CURRENT["id"] or LAST["id"] or "")
+            busy = bool(CURRENT["id"]) or BATCH["running"]
+            return self._send(200, {"comfy": comfy_up(), "busy": busy, "job": public_job(j) if j else None,
+                                    "batch": public_batch(),
                                     "max_refs": MAX_REFS, "documented_refs": DOCUMENTED_REFS,
                                     "shapes": {k: list(v) for k, v in SHAPES.items()},
                                     "ref_budget_mp": REF_BUDGET_MP, "model": FLUX2_UNET})
@@ -503,6 +644,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, public_job(j)) if j else self._send(404, {"error": "No such job"})
         if path == "/api/history":
             return self._send(200, history())
+        if path.startswith("/queue/"):
+            target = (QUEUE_ROOT / unquote(path[len("/queue/"):])).resolve()
+            if QUEUE_ROOT.resolve() not in target.parents or not target.is_file():
+                return self._send(404, {"error": "Not found"})
+            return self._send(200, target.read_bytes(), "image/jpeg")
         if path.startswith("/files/"):
             target = (OUTPUT_ROOT / unquote(path[len("/files/"):])).resolve()
             if OUTPUT_ROOT.resolve() not in target.parents or not target.is_file():
@@ -526,7 +672,29 @@ class Handler(BaseHTTPRequestHandler):
             except RuntimeError as e:
                 return self._send(409, {"error": str(e)})
             return self._send(200, public_job(job))
+        if path == "/api/batch/add":
+            try:
+                item = batch_add(body)
+            except ValueError as e:
+                return self._send(400, {"error": str(e)})
+            except RuntimeError as e:
+                return self._send(409, {"error": str(e)})
+            return self._send(200, {"id": item["id"], "batch": public_batch()})
+        if path == "/api/batch/remove":
+            if not batch_remove(str(body.get("id", ""))):
+                return self._send(409, {"error": "That job is running or already gone."})
+            return self._send(200, {"batch": public_batch()})
+        if path == "/api/batch/start":
+            try:
+                batch_start()
+            except ValueError as e:
+                return self._send(400, {"error": str(e)})
+            except RuntimeError as e:
+                return self._send(409, {"error": str(e)})
+            return self._send(200, {"batch": public_batch()})
         if path == "/api/cancel":
+            if BATCH["running"]:
+                BATCH["stop"] = True        # remaining jobs stay queued
             j = JOBS.get(CURRENT["id"]) if CURRENT["id"] else None
             if not j:
                 return self._send(200, {"ok": True})
@@ -546,10 +714,13 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    load_queue()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     url = f"http://127.0.0.1:{PORT}"
     print(f"{now()}  RefStudio running at {url}  (Ctrl-C to stop)", flush=True)
     print(f"{now()}  Output: {OUTPUT_ROOT}   ComfyUI: {COMFY}   Model: {FLUX2_UNET}", flush=True)
+    if BATCH["items"]:
+        print(f"{now()}  {len(BATCH['items'])} job(s) waiting in the batch", flush=True)
     if not os.environ.get("REFSTUDIO_NO_BROWSER"):
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:

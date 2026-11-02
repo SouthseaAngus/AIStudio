@@ -78,6 +78,14 @@ The status panel shows what's happening and how long it's taken, and the bar fil
 
 **Cancel** stops a run part-way through.
 
+### Or queue several jobs in a batch
+
+Click **Add to batch** instead of **Generate** to save the job without running it. It appears in the **Batch** panel under the form. Change the label, prompt, photos or settings and add another. You can queue up to 10 jobs, and each can make up to 4 images from up to 16 reference photos. Click **×** to take a job out.
+
+Click **Start batch** to run them one after another, which is handy overnight. Each job gets its own folder, as if you'd clicked Generate. If one job fails, the batch carries on with the next. **Stop batch** stops the job that's running and leaves it and the rest in the queue for next time. Jobs you add while a batch runs wait for the next **Start batch**.
+
+Queued jobs are kept in `Output/.refstudio-queue/`, so they survive closing RefStudio or restarting the Mac.
+
 ---
 
 ## How long it takes
