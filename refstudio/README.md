@@ -164,7 +164,8 @@ If you reuse a label, the new folder gets *(2)*, *(3)* and so on, so nothing is 
 
 - **Open full size:** view it at full resolution in a new tab.
 - **Use as reference:** add this result to your reference photos, to build on it.
-- **Reuse settings:** load this run's label, prompt, settings and photos back into the form.
+- **Refine this image:** load the picture you've selected back into the form: its seed, prompt, settings and reference photos, with Images set to 1. Change the prompt or the photos and click Generate to get a variation of that same picture instead of a fresh one. Works on Recent runs and on a run that's still generating.
+- **Reuse settings:** load this run's label, prompt, settings and photos back into the form, with a random seed.
 - **Show folder:** open the run's folder in Finder.
 
 Click any card in **Recent runs** to see an older run again.

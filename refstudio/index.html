@@ -177,6 +177,7 @@
       <div class="strip" id="strip"></div>
       <div class="meta" id="vMeta"></div>
       <div class="tools" id="vTools" hidden>
+        <button class="ghost" id="tRefine" title="Put this image's seed, prompt and references back in the form to adjust">Refine this image</button>
         <button class="ghost" id="tOpen">Open full size</button>
         <button class="ghost" id="tRef">Use as reference</button>
         <button class="ghost" id="tReuse">Reuse settings</button>
@@ -421,31 +422,46 @@ function showRun(run, i, live) {
     im.onclick = () => showRun(run, k, live); s.appendChild(im);
   });
   const bits = [`<b>${esc(run.label || "")}</b>`];
-  if (run.seed != null) bits.push(`seed ${run.seed + i}`);
+  const seed = seedOf(run, i);
+  if (seed != null) bits.push(`seed ${seed}`);
   if (run.steps) bits.push(`${run.steps} steps`);
   if (run.refs) bits.push(`${run.refs.length} reference${run.refs.length === 1 ? "" : "s"}`);
   if (run.seconds_per_image) bits.push(`${fmt(run.seconds_per_image)} per image`);
   $("vMeta").innerHTML = bits.join(" · ") + (run.prompt ? `<br>${esc(run.prompt)}` : "");
   $("vTools").hidden = false;
-  $("tReuse").hidden = !run.refs;
 }
+function seedOf(run, i) { return run.seeds?.[i] ?? (run.seed != null ? (run.seed + i) % 2 ** 32 : null); }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 $("tOpen").onclick = () => view && window.open(view.run.images[view.i], "_blank");
 $("tRef").onclick = () => view && addFromUrl(view.run.images[view.i], `${view.run.label || "result"}.png`);
 $("tFolder").onclick = () => view && fetch("/api/reveal", { method: "POST", body: JSON.stringify({ folder: view.run.folder }) });
-$("tReuse").onclick = async () => {
-  if (!view || !view.run.refs) return;
-  const r = view.run;
+$("tReuse").onclick = () => view && loadIntoForm(view.run, view.i, false);
+$("tRefine").onclick = () => view && loadIntoForm(view.run, view.i, true);
+
+// Refill the form from a run. Refine keeps the chosen image's seed and makes one
+// image, so changing the prompt or references nudges that picture rather than
+// starting over; Reuse settings leaves the seed random.
+async function loadIntoForm(run, i, refine) {
+  let r = run;
+  try {   // a live run's view lacks its settings and references: ask the server
+    const res = await fetch(`/api/run?folder=${encodeURIComponent(run.folder)}`);
+    if (res.ok) r = await res.json();
+  } catch (e) { /* use what the viewer has */ }
   $("label").value = r.label || ""; $("prompt").value = r.prompt || "";
   store("label", $("label").value); store("prompt", $("prompt").value);
   if (r.shape) setShape(r.shape);
   if (r.steps) $("steps").value = r.steps;
   if (r.guidance) $("guidance").value = r.guidance;
+  const seed = refine ? seedOf(r, i) : null;
+  $("seed").value = seed ?? "";
+  if (refine) $("count").value = "1";
   refs = []; renderRefs();
-  for (const u of r.refs) await addFromUrl(u, decodeURIComponent(u.split("/").pop()));
+  for (const u of r.refs || []) await addFromUrl(u, decodeURIComponent(u.split("/").pop()));
   window.scrollTo({ top: 0, behavior: "smooth" });
-};
+  $("prompt").focus();
+  if (refine) toast(`Loaded image ${i + 1}: seed ${seed}, its prompt and ${refs.length} reference${refs.length === 1 ? "" : "s"}. Adjust and Generate.`, true);
+}
 
 // ------------------------------------------------------------ history
 async function loadHistory() {

@@ -36,7 +36,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import quote, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import requests
 
@@ -439,7 +439,7 @@ def new_job(req, run_dir):
     job = {"id": uuid.uuid4().hex[:10], "state": "queued", "message": "Queued", "index": 0,
            "count": req["count"], "images": [], "log": [], "created": time.time(),
            "run_dir": str(run_dir), "folder": run_dir.relative_to(OUTPUT_ROOT).as_posix(),
-           "label": req["label"], "prompt": req["prompt"], "seed": req["seed"]}
+           "label": req["label"], "prompt": req["prompt"], "seed": req["seed"], "req": req}
     JOBS[job["id"]] = job
     CURRENT["id"] = LAST["id"] = job["id"]
     return job
@@ -590,18 +590,45 @@ def history(limit=60):
             continue
         if m.get("app") != "refstudio" or m.get("status") != "done":
             continue
-        d = meta_path.parent
-        runs.append({
-            "folder": d.relative_to(OUTPUT_ROOT).as_posix(),
-            "label": m.get("title"), "prompt": m.get("user_prompt"),
-            "shape": m.get("shape"), "steps": m.get("steps"), "guidance": m.get("cfg"),
-            "seed": m.get("seed"), "finished": m.get("generation_finished"),
-            "seconds_per_image": round(m["generation_seconds"] / max(len(m.get("images") or [1]), 1)),
-            "images": [rel_url(d / p["file"]) for p in m.get("images", []) if (d / p["file"]).is_file()],
-            "refs": [rel_url(p) for p in sorted((d / "references").glob("*")) if p.is_file()],
-        })
+        runs.append(run_info(meta_path.parent, m))
     runs.sort(key=lambda r: r["finished"] or "", reverse=True)
     return runs[:limit]
+
+
+def run_info(d, m):
+    """What the page needs to show a run and refill the form from it."""
+    imgs = [p for p in m.get("images", []) if (d / p["file"]).is_file()]
+    return {
+        "folder": d.relative_to(OUTPUT_ROOT).as_posix(),
+        "label": m.get("title"), "prompt": m.get("user_prompt"),
+        "shape": m.get("shape"), "steps": m.get("steps"), "guidance": m.get("cfg"),
+        "seed": m.get("seed"), "finished": m.get("generation_finished"),
+        "seconds_per_image": round((m.get("generation_seconds") or 0) / max(len(m.get("images") or [1]), 1)),
+        "images": [rel_url(d / p["file"]) for p in imgs],
+        "seeds": [p.get("seed") for p in imgs],
+        "refs": [rel_url(p) for p in sorted((d / "references").glob("*")) if p.is_file()],
+    }
+
+
+def run_details(folder):
+    """One run by folder: from its Metadata.json, or, while it's still generating
+    (no Metadata.json yet), from the job that's making it."""
+    d = (OUTPUT_ROOT / folder).resolve()
+    if OUTPUT_ROOT.resolve() not in d.parents or not d.is_dir():
+        return None
+    try:
+        return run_info(d, json.loads((d / "Metadata.json").read_text()))
+    except (OSError, json.JSONDecodeError):
+        pass
+    job = next((j for j in JOBS.values() if j.get("folder") == folder and j.get("req")), None)
+    if not job:
+        return None
+    r = job["req"]
+    files = sorted(d.glob("Image_*.png"))
+    return run_info(d, {"title": r["label"], "user_prompt": r["prompt"], "shape": r["shape"],
+                        "steps": r["steps"], "cfg": r["guidance"], "seed": r["seed"],
+                        "images": [{"file": f.name, "seed": (r["seed"] + i) % (2**32)}
+                                   for i, f in enumerate(files)]})
 
 
 # ---------------------------------------------------------------- HTTP
@@ -644,6 +671,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, public_job(j)) if j else self._send(404, {"error": "No such job"})
         if path == "/api/history":
             return self._send(200, history())
+        if path == "/api/run":
+            run = run_details(parse_qs(urlparse(self.path).query).get("folder", [""])[0])
+            return self._send(200, run) if run else self._send(404, {"error": "That run can't be found."})
         if path.startswith("/queue/"):
             target = (QUEUE_ROOT / unquote(path[len("/queue/"):])).resolve()
             if QUEUE_ROOT.resolve() not in target.parents or not target.is_file():
