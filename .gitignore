@@ -13,3 +13,6 @@ __pycache__/
 
 # RefStudio server log
 apps/refstudio/*.log
+
+# Key Scenes button log
+apps/scenes/*.log

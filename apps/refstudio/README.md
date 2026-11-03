@@ -166,6 +166,7 @@ If you reuse a label, the new folder gets *(2)*, *(3)* and so on, so nothing is 
 - **Use as reference:** add this result to your reference photos, to build on it.
 - **Refine this image:** load the picture you've selected back into the form: its seed, prompt, settings and reference photos, with Images set to 1. Change the prompt or the photos and click Generate to get a variation of that same picture instead of a fresh one. Works on Recent runs and on a run that's still generating.
 - **Reuse settings:** load this run's label, prompt, settings and photos back into the form, with a random seed.
+- **Make Stream Deck button:** turn the picture into a key icon and ask for the text to go under it. The glyph becomes white on pure black and is scaled to nearly fill the key. Any text FLUX drew is replaced by your label, set large in San Francisco Bold. It's saved beside the picture as `Button_01.png` (or `_02`, to match), shown in a new tab and selected in Finder, ready to drag onto the key in the Stream Deck app. Works best on a single bold glyph; ask for "a white icon on a black background" and leave the text to the button.
 - **Show folder:** open the run's folder in Finder.
 
 Click any card in **Recent runs** to see an older run again.

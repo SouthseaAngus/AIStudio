@@ -181,6 +181,7 @@
         <button class="ghost" id="tOpen">Open full size</button>
         <button class="ghost" id="tRef">Use as reference</button>
         <button class="ghost" id="tReuse">Reuse settings</button>
+        <button class="ghost" id="tButton" title="White icon on black, filling the key, with a label you choose">Make Stream Deck button</button>
         <button class="ghost" id="tFolder">Show folder</button>
       </div>
     </div>
@@ -438,6 +439,18 @@ $("tRef").onclick = () => view && addFromUrl(view.run.images[view.i], `${view.ru
 $("tFolder").onclick = () => view && fetch("/api/reveal", { method: "POST", body: JSON.stringify({ folder: view.run.folder }) });
 $("tReuse").onclick = () => view && loadIntoForm(view.run, view.i, false);
 $("tRefine").onclick = () => view && loadIntoForm(view.run, view.i, true);
+$("tButton").onclick = async () => {
+  if (!view) return;
+  const label = prompt("Text under the icon (leave empty for none):", view.run.label || "");
+  if (label === null) return;
+  try {
+    const r = await fetch("/api/button", { method: "POST", body: JSON.stringify({ image: view.run.images[view.i], label }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    window.open(j.url, "_blank");
+    toast(`Saved ${j.file} and selected it in Finder. Drag it onto the key in the Stream Deck app.`, true);
+  } catch (e) { toast(e.message || "Couldn't make the button."); }
+};
 
 // Refill the form from a run. Refine keeps the chosen image's seed and makes one
 // image, so changing the prompt or references nudges that picture rather than

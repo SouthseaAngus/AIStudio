@@ -19,7 +19,7 @@ apps/
   scenes/      Key Scenes: a film's key scenes, with stills and clips (apps/scenes/README.md)
   psagent/     a local LLM drives Photoshop
 tests/         Spinnaker reference tests (tests/README.md)
-tools/         gen_image_types_doc.py, which rebuilds docs/Image Types.md
+tools/         gen_image_types_doc.py (rebuilds docs/Image Types.md); make_button.py (Stream Deck keys)
 docs/          documentation
 Output/        everything generated, in dated run folders (not in git)
 ```

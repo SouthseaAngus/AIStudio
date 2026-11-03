@@ -45,8 +45,14 @@ class OllamaClient:
         except requests.RequestException:
             return {"name": self.model, "details": "unavailable"}
 
-    def structured_json(self, system_prompt: str, user_prompt: str) -> dict:
-        """Ask the orchestrator for a JSON object. Fail loud on bad JSON."""
+    def structured_json(self, system_prompt: str, user_prompt: str, timeout: int = 300,
+                        think: bool | str | None = None) -> dict:
+        """Ask the orchestrator for a JSON object. Fail loud on bad JSON.
+
+        think=False stops thinking models (gemma4) reasoning before they answer;
+        on long inputs that reasoning can use up the reply and leave it empty.
+        gpt-oss can't stop thinking; it takes a level instead: "low", "medium"
+        or "high"."""
         payload = {
             "model": self.model,
             "stream": False,
@@ -57,8 +63,10 @@ class OllamaClient:
                 {"role": "user", "content": user_prompt},
             ],
         }
+        if think is not None:
+            payload["think"] = think
         try:
-            r = requests.post(f"{self.host}/api/chat", json=payload, timeout=300)
+            r = requests.post(f"{self.host}/api/chat", json=payload, timeout=timeout)
             r.raise_for_status()
         except requests.RequestException as e:
             self.logger.fail(f"Ollama request failed: {e}")

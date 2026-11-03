@@ -41,6 +41,8 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 import requests
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[1]))
+from modules.button_icon import make_button  # noqa: E402
 PORT = int(os.environ.get("REFSTUDIO_PORT", "8765"))
 COMFY = os.environ.get("REFSTUDIO_COMFY", "http://127.0.0.1:8188").rstrip("/")
 OLLAMA = os.environ.get("REFSTUDIO_OLLAMA", "http://127.0.0.1:11434").rstrip("/")
@@ -734,6 +736,18 @@ class Handler(BaseHTTPRequestHandler):
             except requests.RequestException:
                 pass
             return self._send(200, {"ok": True})
+        if path == "/api/button":
+            # A Stream Deck button from one image, saved beside it and shown in Finder
+            src = (OUTPUT_ROOT / unquote(str(body.get("image", "")).removeprefix("/files/"))).resolve()
+            if OUTPUT_ROOT.resolve() not in src.parents or not src.is_file() or not src.name.startswith("Image_"):
+                return self._send(404, {"error": "That image can't be found."})
+            out = src.with_name(src.name.replace("Image_", "Button_"))
+            try:
+                make_button(src, out, str(body.get("label", "")).strip()[:40])
+            except (OSError, ValueError) as e:
+                return self._send(400, {"error": f"Couldn't make the button: {e}"})
+            subprocess.run(["open", "-R", str(out)], capture_output=True)
+            return self._send(200, {"url": rel_url(out), "file": out.name})
         if path == "/api/reveal":
             target = (OUTPUT_ROOT / str(body.get("folder", ""))).resolve()
             if OUTPUT_ROOT.resolve() in target.parents and target.is_dir():
