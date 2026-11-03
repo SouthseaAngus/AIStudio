@@ -2,7 +2,7 @@
 # Start RefStudio in the background (if it isn't already running) and open it.
 # Safe to run from Stream Deck, Hazel or Finder: needs no terminal or venv activation.
 APP_DIR="${0:A:h}"
-ROOT="${APP_DIR:h}"
+ROOT="${APP_DIR:h:h}"
 URL="http://127.0.0.1:8765"
 LOG="$APP_DIR/refstudio.log"
 

@@ -39,8 +39,8 @@ You don't need to open ComfyUI yourself. RefStudio starts it if it isn't already
 **From Terminal:**
 
 ```zsh
-~/AIStudio/refstudio/start.sh     # start it (or just reopen the page if it's already running)
-~/AIStudio/refstudio/stop.sh      # stop it
+~/AIStudio/apps/refstudio/start.sh     # start it (or just reopen the page if it's already running)
+~/AIStudio/apps/refstudio/stop.sh      # stop it
 ```
 
 The page lives at **http://127.0.0.1:8765**. Bookmark it if you like. Only this Mac can open it.
@@ -178,7 +178,7 @@ A cancelled run that hadn't produced a picture is deleted. A run that failed is 
 
 | What you see | What to do |
 |---|---|
-| The page won't open | Run `~/AIStudio/refstudio/start.sh` in Terminal. If it says it didn't start, look in `~/AIStudio/refstudio/refstudio.log`. |
+| The page won't open | Run `~/AIStudio/apps/refstudio/start.sh` in Terminal. If it says it didn't start, look in `~/AIStudio/apps/refstudio/refstudio.log`. |
 | "ComfyUI isn't answering" | ComfyUI failed to start. Check `~/ComfyUI/user/comfyui.log`, or restart the Mac and try again. |
 | "ComfyUI stopped during generation" | Usually out of memory. Quit big apps (Photoshop, Lightroom), leave *Free Ollama's memory* ticked, and try again. |
 | "Model … not found" | A model file is missing or misnamed in `~/ComfyUI/models/`. The message says which one and where it belongs. |

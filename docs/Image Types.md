@@ -693,4 +693,4 @@ python tools/gen_image_types_doc.py                     # rebuild
 python tools/gen_image_types_doc.py --generate-missing  # make missing examples first
 ```
 
-Without a pin, each type shows the latest run of its `example` request, or else the latest run that used the type. To show a particular image, set `example_image`. Example images are copied to `documentation/images/` at up to 1024 px, so commit that folder along with the document.
+Without a pin, each type shows the latest run of its `example` request, or else the latest run that used the type. To show a particular image, set `example_image`. Example images are copied to `docs/images/` at up to 1024 px, so commit that folder along with the document.

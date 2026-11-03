@@ -8,6 +8,24 @@ Prompt received → Ollama completed → Workflow loaded → Generation started
 → Generation finished → Saved N image(s)
 ```
 
+## What's where
+
+```
+controller.py  config.yaml   the image pipeline and its settings
+modules/       shared code (config, logging, Ollama, ComfyUI, output folders)
+workflows/     ComfyUI workflow graphs
+apps/
+  refstudio/   browser app: generate from reference photos (apps/refstudio/README.md)
+  scenes/      Key Scenes: a film's key scenes, with stills and clips (apps/scenes/README.md)
+  psagent/     a local LLM drives Photoshop
+tests/         Spinnaker reference tests (tests/README.md)
+tools/         gen_image_types_doc.py, which rebuilds docs/Image Types.md
+docs/          documentation
+Output/        everything generated, in dated run folders (not in git)
+```
+
+Run everything from `~/AIStudio` with the venv active, e.g. `python apps/scenes/scenes.py ...`.
+
 ## Setup checklist
 
 Work through these in order. Steps 1–4 are one-off.
@@ -103,7 +121,7 @@ Switching is one line in `config.yaml`.
 The orchestrator chooses from 20 image types (photographic, graphic, and art
 and illustration), defined in `styles.types` in `config.yaml`. Each type sets
 its prompt pattern, shape, model, guidance and negative prompt. See
-[documentation/Image Types.md](documentation/Image%20Types.md) for every type
+[docs/Image Types.md](docs/Image%20Types.md) for every type
 with an example, and how to add your own.
 
 ```

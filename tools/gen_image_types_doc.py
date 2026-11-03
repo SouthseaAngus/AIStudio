@@ -1,4 +1,4 @@
-"""Regenerate documentation/Image Types.md from styles.types in config.yaml.
+"""Regenerate docs/Image Types.md from styles.types in config.yaml.
 
 Each type is illustrated with a real image from your Output folder, chosen in
 this order:
@@ -6,7 +6,7 @@ this order:
   2. the latest run of the type's `example` request (preferring one that used this type)
   3. the latest run of any request that used this type
 A run is used for one type only. The chosen image is copied (downsized) into
-documentation/images/ so the document works anywhere, including GitHub, and the
+docs/images/ so the document works anywhere, including GitHub, and the
 document shows the request and the prompt that actually produced it.
 
 Usage (from anywhere):
@@ -27,8 +27,8 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 os.chdir(ROOT)
 
-DOC = Path("documentation/Image Types.md")
-IMG_DIR = Path("documentation/images")
+DOC = Path("docs/Image Types.md")
+IMG_DIR = Path("docs/images")
 IMG_EDGE = 1024  # long edge of the copies kept with the document
 
 FAMILY_NAMES = {"photo": "Photographic", "graphic": "Graphic", "art": "Art and illustration"}
@@ -297,7 +297,7 @@ def build(cfg, types, dims, chosen, output_root):
       "python tools/gen_image_types_doc.py --generate-missing  # make missing examples first\n```\n")
     w("Without a pin, each type shows the latest run of its `example` request, or else the latest "
       "run that used the type. To show a particular image, set `example_image`. Example images are "
-      "copied to `documentation/images/` at up to "
+      "copied to `docs/images/` at up to "
       f"{IMG_EDGE} px, so commit that folder along with the document.\n")
     return "\n".join(L)
 

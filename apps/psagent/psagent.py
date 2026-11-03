@@ -6,7 +6,7 @@ Ollama plans N different versions using a fixed menu of Photoshop techniques
 (pslib.jsx), and each version is rendered in Photoshop and saved as a
 maximum-quality JPEG.
 
-    python psagent/psagent.py ~/Pictures/heron.jpg \\
+    python apps/psagent/psagent.py ~/Pictures/heron.jpg \\
         "Isolate the subject, turn it into an ink drawing with wash, turn the background into a graphite pencil drawing"
 
 Options:
@@ -33,7 +33,7 @@ from pathlib import Path
 import requests
 
 HERE = Path(__file__).resolve().parent
-AISTUDIO = HERE.parent
+AISTUDIO = HERE.parent.parent
 LIB = HERE / "pslib.jsx"
 OUTPUT_ROOT = Path("~/AIStudio/Output").expanduser()
 

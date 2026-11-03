@@ -57,7 +57,7 @@ models:
 styles:
   # The image types the orchestrator can choose from. Each type is self-contained:
   # add, remove or retune one here and the LLM's instructions, validation and
-  # `--list-styles` all follow. Reference with examples: documentation/Image Types.md
+  # `--list-styles` all follow. Reference with examples: docs/Image Types.md
   #
   #   family        photo | graphic | art — sets the vocabulary rules (graphic and
   #                 art types are never allowed photographic language)

@@ -2,7 +2,7 @@
 """RefStudio: FLUX.2 image generation from reference photos, in your browser.
 
     cd ~/AIStudio && source .venv/bin/activate
-    python refstudio/app.py
+    python apps/refstudio/app.py
 
 Opens http://127.0.0.1:8765. Drop in up to 16 reference photos, give the run a
 label and a prompt, and generate. Each run is saved like any AIStudio run:
