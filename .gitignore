@@ -16,3 +16,9 @@ apps/refstudio/*.log
 
 # Key Scenes button log
 apps/scenes/*.log
+
+# Compiled Photoscan binary
+apps/photoscan/photoscan
+
+# Photoscan log
+apps/photoscan/*.log

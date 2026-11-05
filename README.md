@@ -18,6 +18,7 @@ apps/
   refstudio/   browser app: generate from reference photos (apps/refstudio/README.md)
   scenes/      Key Scenes: a film's key scenes, with stills and clips (apps/scenes/README.md)
   psagent/     a local LLM drives Photoshop
+  photoscan/   turn overlapping photos into a 3D model (apps/photoscan/README.md)
 tests/         Spinnaker reference tests (tests/README.md)
 tools/         gen_image_types_doc.py (rebuilds docs/Image Types.md); make_button.py (Stream Deck keys)
 docs/          documentation
