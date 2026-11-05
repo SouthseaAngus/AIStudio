@@ -1,6 +1,6 @@
 # AIStudio Image Types
 
-AIStudio can produce **20 types of image**. Each type is defined once, in the `styles.types` section of `config.yaml`, and that one definition drives everything: the catalogue the orchestrator LLM chooses from, how it writes the prompt, the shape and model used, the FLUX guidance, the negative prompt and the safety checks applied afterwards.
+AIStudio can produce **22 types of image**. Each type is defined once, in the `styles.types` section of `config.yaml`, and that one definition drives everything: the catalogue the orchestrator LLM chooses from, how it writes the prompt, the shape and model used, the FLUX guidance, the negative prompt and the safety checks applied afterwards.
 
 This document is generated from `config.yaml`, and every example image is a real AIStudio run from your Output folder, shown with the request and the prompt that produced it. Regenerate it after changing a type or making better examples (see *Keeping this document current* at the end).
 
@@ -41,9 +41,9 @@ Every type belongs to a family, which sets the vocabulary the LLM is allowed to 
 
 | Family | Types | Rule |
 |---|---|---|
-| Photographic | `photo`, `portrait`, `landscape`, `macro`, `product`, `architecture`, `monochrome`, `cinematic` | Photographic language welcome: light, lens, depth of field. |
+| Photographic | `photo`, `portrait`, `landscape`, `architecture`, `monochrome`, `cinematic` | Photographic language welcome: light, lens, depth of field. |
 | Graphic | `clipart`, `logo`, `icon`, `pixel_art`, `vintage_poster` | No photographic language at all; named colours are honoured; fixed backgrounds where set. |
-| Art and illustration | `illustration`, `watercolour`, `oil_painting`, `pencil_sketch`, `line_art`, `storybook`, `3d_render` | Describe medium and technique; no photographic language. |
+| Art and illustration | `illustration`, `watercolour`, `oil_painting`, `impressionism`, `pencil_sketch`, `scribble`, `line_art`, `storybook`, `felt_art`, `anime_portrait`, `3d_render` | Describe medium and technique; no photographic language. |
 
 ## Quick reference
 
@@ -52,8 +52,6 @@ Every type belongs to a family, which sets the vocabulary the LLM is allowed to 
 | [`photo`](#photo) | General realistic photograph | landscape, 1536x1024 | photorealistic | 3.5 |
 | [`portrait`](#portrait) | Photographic portrait of a person or animal | portrait, 1024x1536 | photorealistic | 3.0 |
 | [`landscape`](#landscape) | Wide scenic photograph of land, sea or sky | landscape, 1536x1024 | photorealistic | 3.5 |
-| [`macro`](#macro) | Extreme close-up photograph of small subjects | macro, 1344x1024 | photorealistic | 3.5 |
-| [`product`](#product) | Clean studio product shot | square, 1152x1152 | photorealistic | 4.0 |
 | [`architecture`](#architecture) | Buildings, interiors and urban scenes | landscape, 1536x1024 | photorealistic | 4.0 |
 | [`monochrome`](#monochrome) | Black-and-white photograph | landscape, 1536x1024 | photorealistic | 3.5 |
 | [`cinematic`](#cinematic) | Film still with movie-style colour and framing | landscape, 1536x1024 | photorealistic | 3.0 |
@@ -65,9 +63,13 @@ Every type belongs to a family, which sets the vocabulary the LLM is allowed to 
 | [`illustration`](#illustration) | General digital illustration | landscape, 1536x1024 | highest_quality | 3.5 |
 | [`watercolour`](#watercolour) | Loose, translucent watercolour painting | landscape, 1536x1024 | highest_quality | 3.0 |
 | [`oil_painting`](#oil_painting) | Traditional oil painting on canvas | landscape, 1536x1024 | highest_quality | 3.0 |
+| [`impressionism`](#impressionism) | Impressionist painting of broken colour and shimmering light | landscape, 1536x1024 | highest_quality | 2.0 |
 | [`pencil_sketch`](#pencil_sketch) | Graphite or charcoal drawing | portrait, 1024x1536 | highest_quality | 3.5 |
+| [`scribble`](#scribble) | Rough felt-tip drawing with scribbled-in shading | square, 1152x1152 | highest_quality | 2.0 |
 | [`line_art`](#line_art) | Clean black ink outlines, colouring-book style | square (fixed), 1152x1152 | highest_quality | 4.0 |
 | [`storybook`](#storybook) | Warm children's picture-book illustration | landscape, 1536x1024 | highest_quality | 3.5 |
+| [`felt_art`](#felt_art) | Handmade needle-felted wool scene | square, 1152x1152 | highest_quality | 3.5 |
+| [`anime_portrait`](#anime_portrait) | Retro anime character portrait | portrait, 1024x1536 | highest_quality | 3.5 |
 | [`3d_render`](#3d_render) | Polished 3D render or isometric scene | square, 1152x1152 | highest_quality | 3.5 |
 
 Shape is the default workflow and its canvas size; the LLM may adjust the size to suit the content. Models `photorealistic` and `highest_quality` are FLUX Dev; `fast_preview` is FLUX Schnell (capped at 4 steps).
@@ -160,64 +162,6 @@ python controller.py "the Isle of Wight from Southsea beach at dusk"
 Prompt the orchestrator wrote:
 
 > landscape photograph of the Isle of Wight visible across the Solent from the shoreline of Southsea beach at dusk, wide-angle, golden-hour light, strong foreground interest, deep focus, atmospheric depth
-
-### `macro`
-
-**Extreme close-up photograph of small subjects.** Chosen when: macro, close-up of an insect, flower, droplet, texture or small object.
-
-| Setting | Value |
-|---|---|
-| Workflow | `macro` (1344x1024) |
-| Model | `photorealistic` |
-| FLUX guidance | 3.5 |
-| Always avoided | wide view, cluttered background, cartoon |
-
-**Prompt pattern** (X is your subject):
-
-> macro photograph of X, 1:1 magnification, razor-thin depth of field, fine detail, soft diffused light, clean blurred background
-
-**Example**
-
-```zsh
-python controller.py "a dewdrop on a spider's web"
-```
-
-![macro example: a dewdrop on a spider's web](images/macro.jpg)
-
-<sub>`photorealistic` · 30 steps · seed 2677362612 · 36 s · Output/2026/10/2026-10-27 Dewdrop on Spider Web</sub>
-
-Prompt the orchestrator wrote:
-
-> macro photograph of a single, crystal-clear dewdrop clinging to a delicate, intricate spider's web, 1:1 magnification, razor-thin depth of field, fine detail, soft diffused light, clean blurred background
-
-### `product`
-
-**Clean studio product shot.** Chosen when: product shot, packshot, e-commerce, catalogue, an object for sale.
-
-| Setting | Value |
-|---|---|
-| Workflow | `square` (1152x1152) |
-| Model | `photorealistic` |
-| FLUX guidance | 4.0 |
-| Always avoided | clutter, people, hands, harsh shadows, text, watermark |
-
-**Prompt pattern** (X is your subject):
-
-> studio product photograph of X, centred, seamless light-grey backdrop, softbox lighting, subtle reflection, crisp edges, commercial look
-
-**Example**
-
-```zsh
-python controller.py "a leather camera strap"
-```
-
-![product example: a leather camera strap](images/product.jpg)
-
-<sub>`photorealistic` · 30 steps · seed 4155261712 · 36 s · Output/2026/10/2026-10-27 Leather Camera Strap Product Shot</sub>
-
-Prompt the orchestrator wrote:
-
-> studio product photograph of a premium handcrafted brown leather camera strap with brass hardware, centred, seamless light-grey backdrop, softbox lighting, subtle reflection, crisp edges, commercial look
 
 ### `architecture`
 
@@ -518,7 +462,7 @@ Prompt the orchestrator wrote:
 
 ### `oil_painting`
 
-**Traditional oil painting on canvas.** Chosen when: oil painting, oils, impasto, painted on canvas, old master, impressionist.
+**Traditional oil painting on canvas.** Chosen when: oil painting, oils, impasto, painted on canvas, old master.
 
 | Setting | Value |
 |---|---|
@@ -544,6 +488,35 @@ python controller.py "HMS Victory in dry dock as an impressionist oil painting"
 Prompt the orchestrator wrote:
 
 > oil painting of the HMS Victory warship in a dry dock, rendered in an impressionist style, visible impasto brushstrokes, canvas weave, rich layered colour, classical composition, painterly light
+
+### `impressionism`
+
+**Impressionist painting of broken colour and shimmering light.** Chosen when: impressionism, impressionist, Monet, Renoir, en plein air, dabs of colour.
+
+| Setting | Value |
+|---|---|
+| Workflow | `landscape` (1536x1024) |
+| Model | `highest_quality` |
+| FLUX guidance | 2.0 |
+| Always avoided | photorealism, digital-art appearance, smooth blending, airbrushed skin, hard outlines, excessive detail, text |
+
+**Prompt pattern** (X is your subject):
+
+> loose Impressionist oil painting of X, painted quickly en plein air with a wide flat brush, skin, hair and clothing built from separate coarse strokes of paint, water made entirely of short horizontal dabs of broken colour, faces and edges only suggested, no fine detail and no smooth blending anywhere, heavy impasto, vibrant complementary colours, the fleeting effects of natural light
+
+**Example**
+
+```zsh
+python controller.py "a woman on a boat looking at a lakeside village at sunset, impressionist"
+```
+
+![impressionism example: a woman on a boat looking at a lakeside village at sunset, impressionist](images/impressionism.jpg)
+
+<sub>`highest_quality` · 30 steps · seed 411861879 · 72 s · Output/2026/11/2026-11-05 Impressionist Lakeside Sunset (2)</sub>
+
+Prompt the orchestrator wrote:
+
+> loose Impressionist oil painting of a woman on a boat looking at a lakeside village at sunset, painted quickly en plein air with a wide flat brush, skin, hair and clothing built from separate coarse strokes of paint, water made entirely of short horizontal dabs of broken colour, faces and edges only suggested, no fine detail and no smooth blending anywhere, heavy impasto, vibrant complementary colours, the fleeting effects of natural light
 
 ### `pencil_sketch`
 
@@ -573,6 +546,35 @@ python controller.py "a pencil sketch of an old Leica camera"
 Prompt the orchestrator wrote:
 
 > graphite pencil sketch of an old, vintage Leica camera with intricate mechanical details, expressive hatching and cross-hatching, varied line weight, smudged shading, off-white sketchbook paper
+
+### `scribble`
+
+**Rough felt-tip drawing with scribbled-in shading.** Chosen when: scribble, scribbled, scribble art, doodle, felt-tip drawing.
+
+| Setting | Value |
+|---|---|
+| Workflow | `square` (1152x1152) |
+| Model | `highest_quality` |
+| FLUX guidance | 2.0 |
+| Always avoided | loose loops around the subject, stray marks in the background, specks, flying lines, polished illustration, fine detail, smooth vector lines, photorealism, oversized heads, text |
+
+**Prompt pattern** (X is your subject):
+
+> quick rough black felt-tip scribble of X with natural adult body proportions, drawn fast in under a minute, thick wobbly pen outline, every dark area filled with bold zig-zag scribbling that stays inside the shape, pale areas left almost empty, faces and hands only a few simple pen marks, no fine detail, nothing refined, blank white paper around the subject
+
+**Example**
+
+```zsh
+python controller.py "a scribble of a couple dressed up for a wedding"
+```
+
+![scribble example: a scribble of a couple dressed up for a wedding](images/scribble.jpg)
+
+<sub>`highest_quality` · 30 steps · seed 5150 · 70 s · Output/2026/11/2026-11-05 Wedding Couple Scribble (7)</sub>
+
+Prompt the orchestrator wrote:
+
+> quick rough black felt-tip scribble of a couple dressed in wedding attire, a bride in a white gown and a groom in a tuxedo, with natural adult body proportions, drawn fast in under a minute, thick wobbly pen outline, every dark area filled with bold zig-zag scribbling that stays inside the shape, pale areas left almost empty, faces and hands only a few simple pen marks, no fine detail, nothing refined, blank white paper around the subject
 
 ### `line_art`
 
@@ -631,6 +633,64 @@ python controller.py "a hedgehog sailing a teacup across a pond"
 Prompt the orchestrator wrote:
 
 > children's picture-book illustration of a tiny hedgehog sailing inside a delicate porcelain teacup across a calm pond with lily pads, soft gouache textures, warm gentle palette, rounded friendly shapes, whimsical storytelling composition
+
+### `felt_art`
+
+**Handmade needle-felted wool scene.** Chosen when: felt, felted, needle felt, wool figures, woollen, handmade craft, soft toy scene.
+
+| Setting | Value |
+|---|---|
+| Workflow | `square` (1152x1152) |
+| Model | `highest_quality` |
+| FLUX guidance | 3.5 |
+| Always avoided | photograph of real people, smooth plastic, glossy surfaces, drawn lines, text |
+
+**Prompt pattern** (X is your subject):
+
+> needle-felted wool scene of X, fuzzy wool fibre texture on every surface, rounded handmade doll-like figures with simple black bead eyes and rosy cheeks, soft even studio light, cosy miniature craft diorama
+
+**Example**
+
+```zsh
+python controller.py "two women friends as felt dolls sharing lemonade at a cafe table"
+```
+
+![felt_art example: two women friends as felt dolls sharing lemonade at a cafe table](images/felt_art.jpg)
+
+<sub>`highest_quality` · 30 steps · seed 3434158796 · 36 s · Output/2026/11/2026-11-04 Felt Friends Sharing Lemonade</sub>
+
+Prompt the orchestrator wrote:
+
+> needle-felted wool scene of two female friends sharing lemonade at a cafe table, fuzzy wool fibre texture on every surface, rounded handmade doll-like figures with simple black bead eyes and rosy cheeks, soft even studio light, cosy miniature craft diorama
+
+### `anime_portrait`
+
+**Retro anime character portrait.** Chosen when: anime, manga, anime portrait, Japanese animation, 1980s anime, cel-shaded character.
+
+| Setting | Value |
+|---|---|
+| Workflow | `portrait` (1024x1536) |
+| Model | `highest_quality` |
+| FLUX guidance | 3.5 |
+| Always avoided | photograph, 3D render, western cartoon, caricature, painterly brushstrokes, soft airbrushed shading, text |
+
+**Prompt pattern** (X is your subject):
+
+> 1980s Japanese TV anime screencap of X, classic anime character design, large glossy anime eyes, slim angular face, fine thin ink lines, flat two-tone cel shading with hard-edged shadows, muted hand-painted background
+
+**Example**
+
+```zsh
+python controller.py "an anime portrait of a cheerful man with a moustache pointing at the viewer"
+```
+
+![anime_portrait example: an anime portrait of a cheerful man with a moustache pointing at the viewer](images/anime_portrait.jpg)
+
+<sub>`highest_quality` · 30 steps · seed 3357706753 · 56 s · Output/2026/11/2026-11-04 Cheerful Moustache Man Anime</sub>
+
+Prompt the orchestrator wrote:
+
+> 1980s Japanese TV anime screencap of a cheerful man with a moustache pointing at the viewer, classic anime character design, large glossy anime eyes, slim angular face, fine thin ink lines, flat two-tone cel shading with hard-edged shadows, muted hand-painted background
 
 ### `3d_render`
 

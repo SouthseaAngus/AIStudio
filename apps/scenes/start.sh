@@ -7,6 +7,7 @@ ROOT="${APP_DIR:h:h}"
 LOG="$APP_DIR/scenes.log"
 MODEL="${SCENES_MODEL:-gpt-oss:120b}"
 FILMS="/Volumes/video/FilmDVDs"
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"   # ffmpeg/ffprobe: Stream Deck's PATH has no Homebrew
 
 film_name() { echo "${1:t:r}" | sed -E 's/^[0-9]+[ .-]*//' }
 notify() { /usr/bin/osascript -e "display notification \"$2\" with title \"Key Scenes\" subtitle \"$1\"" }

@@ -111,7 +111,10 @@ def duration_label(seconds: float) -> str:
 
 
 def run(cmd: list, logger, what: str):
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True)
+    except FileNotFoundError:
+        logger.fail(f"{cmd[0]} not found; install it with: brew install ffmpeg")
     if r.returncode != 0:
         logger.fail(f"{what} failed:\n{r.stderr[-2000:]}")
     return r.stdout
